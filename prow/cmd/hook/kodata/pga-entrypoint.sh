@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Launch custom (no k8s infra) hook build* as a GH Action to run a prow plugin
+# Launch custom (no k8s infra) hook build as a GH Action to run a prow plugin
 #
 # DEBUG
 set -x
@@ -27,9 +27,12 @@ fi
 
 echo "${GITHUB_TOKEN}" > "${GITHUB_TOKENFILE}"
 
+set +e
 /ko-app/hook \
     --config-path "${PROW_CONFIGFILE}" \
     --plugin-config "${PLUGIN_CONFIGFILE}" \
     --hmac-secret-file "${HMAC_FILE}" \
     --github-token-path "${GITHUB_TOKENFILE}" \
     --dry-run=false
+
+sleep 9999
