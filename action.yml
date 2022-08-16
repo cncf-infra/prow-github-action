@@ -2,11 +2,11 @@
 name: "prow-github-action"
 description: "Runs a test-infra Prow Plugin using a custom build of hook (k8s build cluster not required.) "
 inputs:
-  prow-config:
+  prow_config:
     description: "Custom Prow Config"
     required: false
     default: ""
-  plugin-config:
+  plugin_config:
     description: "Custom Prow Plugin Config"
     required: false
     default: ""
