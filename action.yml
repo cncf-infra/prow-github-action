@@ -2,8 +2,8 @@
 name: "prow-github-action"
 description: "Runs a test-infra Prow Plugin using a custom build of hook (k8s build cluster not required.) "
 inputs:
-  hook-config:
-    description: "Custom Hook Config"
+  prow-config:
+    description: "Custom Prow Config"
     required: false
     default: ""
   plugin-config:
@@ -19,6 +19,6 @@ runs:
   image: "docker://ghcr.io/cncf-infra/prow-github-action:latest"
   entrypoint: "/var/run/ko/pga-entrypoint.sh"
   # pre-entrypoint: "/var/run/ko/pre-entrypoint.sh"
-  args:
-    - ${{ inputs.hook-config }}
-    - ${{ inputs.plugin-config }}
+  # args:
+  #   - ${{ inputs.prow-config }}
+  #   - ${{ inputs.plugin-config }}

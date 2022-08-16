@@ -19,7 +19,7 @@ else
     cp "/var/run/ko/config.yaml" "${PROW_CONFIGFILE}"
 fi
 
-if [ "${INPUT_PLUGIN_CONFIG}" != "" ]; then
+if [ "${INPUT_PLUGIN-CONFIG}" != "" ]; then
     echo "${INPUT_PLUGIN-CONFIG}" > "${PLUGIN_CONFIGFILE}"
 else
     cp "/var/run/ko/plugins.yaml" "${PLUGIN_CONFIGFILE}"
