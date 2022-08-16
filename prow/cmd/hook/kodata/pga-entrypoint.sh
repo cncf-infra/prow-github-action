@@ -34,6 +34,7 @@ fi
 echo "${GITHUB_TOKEN}" > "${GITHUB_TOKENFILE}"
 
 set +e
+apk add git
 
 /ko-app/hook \
     --config-path "${PROW_CONFIGFILE}" \
