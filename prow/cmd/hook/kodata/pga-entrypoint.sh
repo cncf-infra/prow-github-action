@@ -25,9 +25,16 @@ else
     cp "/var/run/ko/plugins.yaml" "${PLUGIN_CONFIGFILE}"
 fi
 
+if [ "${HMAC}" != "" ]; then
+    echo "${HMAC}" > "${HMAC_FILE}"
+else
+    cp "/var/run/ko/hmac" "${HMAC_FILE}"
+fi
+
 echo "${GITHUB_TOKEN}" > "${GITHUB_TOKENFILE}"
 
 set +e
+
 /ko-app/hook \
     --config-path "${PROW_CONFIGFILE}" \
     --plugin-config "${PLUGIN_CONFIGFILE}" \
