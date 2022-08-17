@@ -36,3 +36,103 @@ standard_init_linux.go:228: exec user process caused: no such file or directory
 #+begin_src tmate :session hpca-cntr-build
 docker run hpda:latest hmac private-key
 #+end_src
+
+* test
+** worksflows
+#+name: list workflows
+#+begin_src shell
+gh workflow list -a
+#+end_src
+
+#+RESULTS: list workflows
+#+begin_example
+Publish	active	32459609
+#+end_example
+
+#+name: view workflow
+#+begin_src shell
+gh workflow view 32459609
+#+end_src
+
+#+RESULTS: view workflow
+#+begin_example
+Publish - publish.yml
+ID: 32459609
+
+Total runs 12
+Recent runs
+completed	success	Store stuff in /mnt	Publish	main	push	3m25s	2864795343
+completed	success	Check input	Publish	main	push	2m32s	2864687956
+completed	success	Rename INPUT_ variables	Publish	main	push	2m35s	2864332284
+completed	success	Use sh (busybox for alpine) instead of bash	Publish	main	push	3m18s	2864194395
+completed	success	Try using kodata pre.sh	Publish	main	push	2m39s	2864168103
+
+To see more runs for this workflow, try: gh run list --workflow publish.yml
+To see the YAML for this workflow, try: gh workflow view publish.yml --yaml
+#+end_example
+
+#+name: view publish.yml
+#+begin_src shell :wrap "src yaml"
+gh workflow view publish.yml --yaml
+#+end_src
+
+#+RESULTS: view publish.yml
+#+begin_src yaml
+name: Publish
+
+on:
+  push:
+    branches: ["main"]
+
+jobs:
+  publish:
+    name: Publish
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-go@v2
+        with:
+          go-version: 1.18.4
+      - uses: actions/checkout@v2
+      - uses: imjasonh/setup-ko@v0.4
+      - run: VERSION=main ko publish --bare ./prow/cmd/hook
+#+end_src
+
+#+name: list workflow runs
+#+begin_src shell :wrap "src yaml"
+gh run list --workflow publish.yml
+#+end_src
+
+#+RESULTS: list workflow runs
+#+begin_src yaml
+completed	success	Store stuff in /mnt	Publish	main	push	2864795343	3m25s	1h
+completed	success	Check input	Publish	main	push	2864687956	2m32s	1h
+completed	success	Rename INPUT_ variables	Publish	main	push	2864332284	2m35s	3h
+completed	success	Use sh (busybox for alpine) instead of bash	Publish	main	push	2864194395	3m18s	3h
+completed	success	Try using kodata pre.sh	Publish	main	push	2864168103	2m39s	3h
+completed	success	Fix image url	Publish	main	push	2864016473	3m0s	4h
+completed	success	Update image ref to use docker://	Publish	main	push	2863954523	2m51s	4h
+completed	success	Generate and use :latest image tag for action	Publish	main	push	2863919416	2m35s	4h
+completed	success	Update VERSION=main for now for publish	Publish	main	push	2863813133	3m2s	5h
+completed	success	Add version to setup-ko run	Publish	main	push	2863024871	3m38s	7h
+completed	failure	Simplify .ko.yaml	Publish	main	push	2862993499	44s	7h
+completed	failure	Run Publish action on pushes to main	Publish	main	push	2862972408	49s	7h
+#+end_src
+
+* Issue / Ticket
+- [] create a prow/cmd/pga based on hook
+  - [] .ko.yaml
+  - actions.yaml
+  - prow/cmd/pga
+    - main.go
+    - USAGE.md (document using cncf-infra/mock-cncf-project) ??
+    - DesignDoc.md
+    - kodata/{prow+plugin-config.yaml}
+- [] provide default (^^) ??
+  - can be over-written with inputs
+- main needs to
+  - not need any files, only ENV vars
+  - launch hook http Service ?? If we have to @hh asked that we go direct to func handler
+  - ensure service is Ready
+  - Send github data to hook url
+  - ensure entire plugin is run / complete
+  - update output / markdown status

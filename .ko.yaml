@@ -7,10 +7,10 @@
 # -X importpath.name=value: sets name to value
 defaultBaseImage: alpine:3.15
 builds:
-  - id: hook
+  - id: pga
     dir: .
-    main: prow/cmd/hook
+    main: prow/cmd/pga
     ldflags:
       - -s -w
-      - -X cncf.io/cncf-infra/hook/version.Version={{.Env.VERSION}}
-      - -X cncf.io/cncf-infra/hook/version.Name=hook
+      - -X cncf.io/cncf-infra/pga/version.Version={{.Env.VERSION}}
+      - -X cncf.io/cncf-infra/pga/version.Name=hook

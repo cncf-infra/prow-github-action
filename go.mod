@@ -80,7 +80,7 @@ require (
 	github.com/spf13/cobra v1.4.0
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.7.0
-	github.com/tektoncd/pipeline v0.36.0
+	github.com/tektoncd/pipeline v0.31.4
 	go.uber.org/zap v1.19.1
 	go4.org v0.0.0-20201209231011-d4a079459e60
 	gocloud.dev v0.19.0
@@ -115,6 +115,7 @@ require (
 )
 
 require (
+	9fans.net/go v0.0.0-20181112161441-237454027057 // indirect
 	cloud.google.com/go v0.102.0 // indirect
 	cloud.google.com/go/compute v1.6.1 // indirect
 	cloud.google.com/go/iam v0.3.0 // indirect
@@ -162,7 +163,7 @@ require (
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/btree v1.0.1 // indirect
 	github.com/google/gnostic v0.5.7-v3refs // indirect
-	github.com/google/go-containerregistry v0.8.1-0.20220216220642-00c59d91847c // indirect
+	github.com/google/go-containerregistry v0.7.0 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/google/pprof v0.0.0-20210720184732-4bb14d4b1be1 // indirect
 	github.com/google/wire v0.4.0 // indirect
@@ -196,6 +197,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/prometheus/procfs v0.7.3 // indirect
 	github.com/prometheus/statsd_exporter v0.21.0 // indirect
+	github.com/rogpeppe/godef v1.1.2 // indirect
 	github.com/sergi/go-diff v1.1.0 // indirect
 	github.com/shurcooL/graphql v0.0.0-20181231061246-d48a9a75455f // indirect
 	github.com/trivago/tgo v1.0.7 // indirect
