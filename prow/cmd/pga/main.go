@@ -19,6 +19,7 @@ package main
 import (
 	"encoding/json"
 	logrus "github.com/sirupsen/logrus"
+	"io/ioutil"
 	github "k8s.io/test-infra/prow/github"
 	"os"
 )
@@ -45,8 +46,12 @@ func main() {
 	eventName := os.Getenv(ghEventName)
 	eventPath := os.Getenv(ghEventPath)
 	repo := os.Getenv(ghRepo)
-
-	err := processGithubAction(eventName, "GUID???", []byte(eventPath), repo)
+	// TODO: event = FILE.READ(eventPath)
+	eventBody, err := ioutil.ReadFile(eventPath)
+	// if err != nil {
+	// 	log.Fatalf("unable to read file: %v", err)
+	// }
+	err = processGithubAction(eventName, "GUID???", []byte(eventBody), repo)
 	if err != nil {
 		logrus.WithError(err).Errorf("Error demuxing event %s", eventName)
 	}
