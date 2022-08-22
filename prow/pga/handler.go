@@ -39,21 +39,18 @@ type Handler struct {
 	RepoEnabled func(org, repo string) bool
 
 	// c is an http client used for dispatching events
-	// to external plugin services. We might keep this?? Commenting out for now.
+	// to external plugin services.
+	// We might keep this?? Commenting out for now.
 	// c http.Client
 
 	// Tracks running handlers for graceful shutdown
 	wg sync.WaitGroup
 }
 
-func (h *Handler) demuxEvent(eventType, eventGUID string, payload []byte) error {
-	l := logrus.WithFields(
-		logrus.Fields{
-			eventTypeField:   eventType,
-			github.EventGUID: eventGUID,
-		},
-	)
+func (h *Handler) routeEventToHndler(eventType, eventGUID string, payload []byte) error {
+
 	var srcRepo string
+
 	switch eventType {
 	case "issues":
 		var i github.IssueEvent
