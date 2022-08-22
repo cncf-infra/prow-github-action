@@ -1,0 +1,16 @@
+#+TITLE: Build
+
+* Local run
+
+#+name: direct run version
+#+begin_src sh
+export GITHUB_EVENT_PATH=~/kubernetes/test-infra/prow/cmd/pga/test-data/branch.json
+export GITHUB_EVENT_NAME=branch
+export GITHUB_ACTION_REPOSITORY=test_repo
+./pga
+#+end_src
+
+#+RESULTS: direct run version
+#+begin_src sh
+time="2022-08-22T21:25:20+01:00" level=error msg="Error demuxing event branch" error="invalid character '/' looking for beginning of value"
+#+end_src
