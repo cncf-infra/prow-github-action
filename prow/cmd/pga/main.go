@@ -26,9 +26,11 @@ import (
 
 const (
 	defaultWebhookPath = "/hook"
-	ghEventPath        = "GITHUB_EVENT_PATH"
-	ghEventName        = "GITHUB_EVENT_NAME"
-	ghRepo             = "GITHUB_ACTION_REPOSITORY"
+	// env var names
+	ghEventPath = "GITHUB_EVENT_PATH"
+	ghEventName = "GITHUB_EVENT_NAME"
+	ghRepo      = "GITHUB_ACTION_REPOSITORY"
+	prowPlugin  = "PROW_PLUGIN" // Just one for now, listof plugins later?
 )
 
 func init() {
@@ -37,7 +39,8 @@ func init() {
 	logrus.SetOutput(os.Stdout)
 
 	// Only log the warning severity or above.
-	logrus.SetLevel(logrus.WarnLevel)
+	logrus.SetLevel(logrus.DebugLevel)
+	logrus.SetReportCaller(true)
 }
 
 // comments tagged #27150 refer to issue on k8s/test-infra
@@ -47,12 +50,28 @@ func main() {
 	repo := os.Getenv(ghRepo)
 
 	eventPayload := getGithubEventPayload()
+	ghClient := getGithubClient()
+	//	plugin := getProwPlugin()
 
 	err := processGithubAction(eventName, "GUID???", eventPayload, repo)
+	// TODO Initialise a ghclient
 	if err != nil {
 		logrus.WithError(err).Errorf("Error demuxing event %s", eventName)
 	}
 
+}
+
+func getGithubClient() github.client {
+	return github.NewClientFromOptions()
+}
+
+// So we have to select a prow plugin to use
+func getProwPlugin() string {
+	prowPlugin := os.Getenv(prowPlugin)
+	if prowPlugin == "" {
+		logrus.Fatalf("Env var %s is not set\n", prowPlugin)
+	}
+	// TODO load the plugin here?
 }
 func getGithubEventPayload() []byte {
 	path := os.Getenv(ghEventPath)
@@ -89,7 +108,7 @@ func processGithubAction(eventType, eventGUID string, payload []byte, srcRepo st
 		if err := json.Unmarshal(payload, &ice); err != nil {
 			return err
 		}
-		//		ice.GUID = eventGUID
+		// ice.GUID = eventGUID
 		// srcRepo = ice.Repo.FullName
 		handleIssueCommentEvent(ice)
 	case "pull_request":
@@ -111,5 +130,6 @@ func processGithubAction(eventType, eventGUID string, payload []byte, srcRepo st
 }
 
 func handleIssueCommentEvent(ice github.IssueCommentEvent) {
+	logrus.Infof("ice %v", ice)
 	logrus.Infof("ice %v", ice)
 }
