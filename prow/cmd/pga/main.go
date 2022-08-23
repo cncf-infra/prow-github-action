@@ -44,18 +44,26 @@ func init() {
 func main() {
 	// #27150 no Command Line Options, Github runtime supplied env vars only
 	eventName := os.Getenv(ghEventName)
-	eventPath := os.Getenv(ghEventPath)
 	repo := os.Getenv(ghRepo)
-	// TODO: event = FILE.READ(eventPath)
-	eventBody, err := ioutil.ReadFile(eventPath)
-	// if err != nil {
-	// 	log.Fatalf("unable to read file: %v", err)
-	// }
-	err = processGithubAction(eventName, "GUID???", []byte(eventBody), repo)
+
+	eventPayload := getGithubEventPayload()
+
+	err := processGithubAction(eventName, "GUID???", eventPayload, repo)
 	if err != nil {
 		logrus.WithError(err).Errorf("Error demuxing event %s", eventName)
 	}
 
+}
+func getGithubEventPayload() []byte {
+	path := os.Getenv(ghEventPath)
+	if path == "" {
+		logrus.Fatalf("Env var %s is not set\n", ghEventPath)
+	}
+	eventPayload, err := ioutil.ReadFile(path)
+	if err != nil {
+		logrus.Fatalf("Error reading: %s Reason: %v", path, err)
+	}
+	return eventPayload
 }
 
 // #27150 https://github.com/kubernetes/test-infra/blob/master/prow/hook/server.go#L91-L176
@@ -77,12 +85,13 @@ func processGithubAction(eventType, eventGUID string, payload []byte, srcRepo st
 		i.GUID = eventGUID
 		srcRepo = i.Repo.FullName
 	case "issue_comment":
-		var ic github.IssueCommentEvent
-		if err := json.Unmarshal(payload, &ic); err != nil {
+		var ice github.IssueCommentEvent
+		if err := json.Unmarshal(payload, &ice); err != nil {
 			return err
 		}
-		ic.GUID = eventGUID
-		srcRepo = ic.Repo.FullName
+		//		ice.GUID = eventGUID
+		// srcRepo = ice.Repo.FullName
+		handleIssueCommentEvent(ice)
 	case "pull_request":
 		var pr github.PullRequestEvent
 		if err := json.Unmarshal(payload, &pr); err != nil {
@@ -99,4 +108,8 @@ func processGithubAction(eventType, eventGUID string, payload []byte, srcRepo st
 		l.Debug("Ignoring unhandled event type. ( k8s/test-infra issue #27150 No external plugins for now.)")
 	}
 	return nil
+}
+
+func handleIssueCommentEvent(ice github.IssueCommentEvent) {
+	logrus.Infof("ice %v", ice)
 }
