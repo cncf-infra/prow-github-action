@@ -1,0 +1,1 @@
+export GITHUB_EVENT_PATH=~/cncf-infra/mock-project-repo/test-data/issue_comment/event.json && GITHUB_EVENT_NAME=issue_comment && go run ./prow/cmd/pga
