@@ -18,19 +18,26 @@ package main
 
 import (
 	"encoding/json"
-	logrus "github.com/sirupsen/logrus"
 	"io/ioutil"
-	github "k8s.io/test-infra/prow/github"
 	"os"
+
+	logrus "github.com/sirupsen/logrus"
+	github "k8s.io/test-infra/prow/github"
 )
 
 const (
 	defaultWebhookPath = "/hook"
+
 	// env var names
+	// supplied by GH Action Runtmie
 	ghEventPath = "GITHUB_EVENT_PATH"
 	ghEventName = "GITHUB_EVENT_NAME"
 	ghRepo      = "GITHUB_ACTION_REPOSITORY"
-	prowPlugin  = "PROW_PLUGIN" // Just one for now, listof plugins later?
+
+	// Configured by project admistrators on the repo as secrets
+	// ${{secrets.oauth}}
+	repoOauthToken = "REPO_OAUTH_TOKEN" // Stored as a secret on the repo (org level also??)
+	prowPlugin  = "PROW_PLUGIN"         // Just one for now, list of plugins later?
 )
 
 func init() {
@@ -53,25 +60,31 @@ func main() {
 	ghClient := getGithubClient()
 	//	plugin := getProwPlugin()
 
-	err := processGithubAction(eventName, "GUID???", eventPayload, repo)
-	// TODO Initialise a ghclient
+	err := processGithubAction(eventName, "GUID???", eventPayload, repo, ghClient)
 	if err != nil {
 		logrus.WithError(err).Errorf("Error demuxing event %s", eventName)
 	}
-
 }
 
-func getGithubClient() github.client {
-	return github.NewClientFromOptions()
+func getGithubClient() github.Client {
+	oauthToken:= os.Getenv(repoOauthToken)
+	options := new(github.ClientOptions)
+	options.GetToken = func() []byte { return []byte(oauthToken)}
+
+	_, _, ghClient , err := github.NewClientFromOptions(logrus.Fields{}, (*options))
+	if err != nil {
+		logrus.WithError(err).Errorf("Error creating a GH Client", )
+	}
+	return ghClient
 }
 
-// So we have to select a prow plugin to use
-func getProwPlugin() string {
+// have to select a prow plugin to use
+func getProwPlugin() {
 	prowPlugin := os.Getenv(prowPlugin)
 	if prowPlugin == "" {
 		logrus.Fatalf("Env var %s is not set\n", prowPlugin)
 	}
-	// TODO load the plugin here?
+	// TODO load plugin here
 }
 func getGithubEventPayload() []byte {
 	path := os.Getenv(ghEventPath)
@@ -88,7 +101,7 @@ func getGithubEventPayload() []byte {
 // #27150 https://github.com/kubernetes/test-infra/blob/master/prow/hook/server.go#L91-L176
 // Inspired by demuxEvent in above ref
 
-func processGithubAction(eventType, eventGUID string, payload []byte, srcRepo string) error {
+func processGithubAction(eventType, eventGUID string, payload []byte, srcRepo string, ghclient github.Client) error {
 	l := logrus.WithFields(
 		logrus.Fields{
 			"eventType":        eventType,
