@@ -5,7 +5,6 @@
 # -s: omit symbol/debug info
 # -w: omit DWARF symbol table
 # -X importpath.name=value: sets name to value
-#defaultBaseImage: alpine:3.15
 defaultBaseImage: alpine:3.15
 builds:
   - id: pga
