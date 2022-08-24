@@ -29,15 +29,16 @@ const (
 	defaultWebhookPath = "/hook"
 
 	// env var names
-	// supplied by GH Action Runtmie
+	// supplied by GH Action Runtime
 	ghEventPath = "GITHUB_EVENT_PATH"
 	ghEventName = "GITHUB_EVENT_NAME"
 	ghRepo      = "GITHUB_ACTION_REPOSITORY"
 
-	// Configured by project admistrators on the repo as secrets
-	// ${{secrets.oauth}}
+	// Project Admins, configure OAuth Tokens on repo as a secret
+	// pga will pick this up as an env var in a Github Action with ${{secrets.oauth}}
 	repoOauthToken = "REPO_OAUTH_TOKEN" // Stored as a secret on the repo (org level also??)
-	prowPlugin  = "PROW_PLUGIN"         // Just one for now, list of plugins later?
+
+	prowPlugin = "PROW_PLUGIN" // Just one for now, list of plugins later?
 )
 
 func init() {
@@ -50,11 +51,11 @@ func init() {
 	logrus.SetReportCaller(true)
 }
 
-// comments tagged #27150 refer to issue on k8s/test-infra
+// comments tagged #27150 refer to issue number on k8s/test-infra
 func main() {
 	// #27150 no Command Line Options, Github runtime supplied env vars only
-	eventName := os.Getenv(ghEventName)
-	repo := os.Getenv(ghRepo)
+	eventName := getMandatoryEnvVar(ghEventName)
+	repo := getMandatoryEnvVar(ghRepo)
 
 	eventPayload := getGithubEventPayload()
 	ghClient := getGithubClient()
@@ -66,15 +67,27 @@ func main() {
 	}
 }
 
-func getGithubClient() github.Client {
-	oauthToken:= os.Getenv(repoOauthToken)
-	options := new(github.ClientOptions)
-	options.GetToken = func() []byte { return []byte(oauthToken)}
-
-	_, _, ghClient , err := github.NewClientFromOptions(logrus.Fields{}, (*options))
-	if err != nil {
-		logrus.WithError(err).Errorf("Error creating a GH Client", )
+func getMandatoryEnvVar(envVar string) string {
+	value := os.Getenv(envVar)
+	if value == "" {
+		logrus.Fatalf("Env Var %v is not set. Exiting", envVar)
 	}
+	logrus.Infof("env |%v=%v|", envVar, value)
+
+	return value
+}
+
+func getGithubClient() github.Client {
+	oauthToken := getMandatoryEnvVar(repoOauthToken) // TODO Mandatory for now, app auth also available??
+	options := new(github.ClientOptions)
+	options.GetToken = func() []byte { return []byte(oauthToken) }
+
+	_, _, ghClient, err := github.NewClientFromOptions(logrus.Fields{}, (*options))
+	if err != nil {
+		logrus.WithError(err).Errorf("Error creating Github Client. Err: %v ", err)
+		logrus.WithError(err).Debugf("oauthToken: %v ", oauthToken)
+	}
+	logrus.WithError(err).Infof("creating a GH Client")
 	return ghClient
 }
 

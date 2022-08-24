@@ -1,195 +1,54 @@
 {
-5
   "action": "created",
-6
   "comment": {
-7
     "author_association": "CONTRIBUTOR",
-8
     "body": "Add a comment",
-9
     "created_at": "2022-08-22T23:49:53Z",
-10
     "html_url": "https://github.com/cncf-infra/mock-project-repo/pull/1#issuecomment-1223338943",
-11
     "id": 1223338943,
-12
     "issue_url": "https://api.github.com/repos/cncf-infra/mock-project-repo/issues/1",
-13
     "node_id": "IC_kwDOH00cic5I6qu_",
-14
     "performed_via_github_app": null,
-15
     "reactions": {
-16
       "+1": 0,
-17
       "-1": 0,
-18
       "confused": 0,
-19
       "eyes": 0,
-20
       "heart": 0,
-21
       "hooray": 0,
-22
       "laugh": 0,
-23
       "rocket": 0,
-24
       "total_count": 0,
-25
       "url": "https://api.github.com/repos/cncf-infra/mock-project-repo/issues/comments/1223338943/reactions"
-26
     },
-27
     "updated_at": "2022-08-22T23:49:53Z",
-28
     "url": "https://api.github.com/repos/cncf-infra/mock-project-repo/issues/comments/1223338943",
-29
     "user": {
-30
       "avatar_url": "https://avatars.githubusercontent.com/u/31331?v=4",
-31
       "events_url": "https://api.github.com/users/hh/events{/privacy}",
-32
       "followers_url": "https://api.github.com/users/hh/followers",
-33
       "following_url": "https://api.github.com/users/hh/following{/other_user}",
-34
       "gists_url": "https://api.github.com/users/hh/gists{/gist_id}",
-35
       "gravatar_id": "",
-36
       "html_url": "https://github.com/hh",
-37
       "id": 31331,
-38
       "login": "hh",
-39
       "node_id": "MDQ6VXNlcjMxMzMx",
-40
       "organizations_url": "https://api.github.com/users/hh/orgs",
-41
       "received_events_url": "https://api.github.com/users/hh/received_events",
-42
       "repos_url": "https://api.github.com/users/hh/repos",
-43
       "site_admin": false,
-44
       "starred_url": "https://api.github.com/users/hh/starred{/owner}{/repo}",
-45
       "subscriptions_url": "https://api.github.com/users/hh/subscriptions",
-46
       "type": "User",
-47
       "url": "https://api.github.com/users/hh"
-48
     }
-49
   },
-200
       "received_events_url": "https://api.github.com/users/cncf-infra/received_events",
-201
       "repos_url": "https://api.github.com/users/cncf-infra/repos",
-202
       "site_admin": false,
-203
       "starred_url": "https://api.github.com/users/cncf-infra/starred{/owner}{/repo}",
-204
       "subscriptions_url": "https://api.github.com/users/cncf-infra/subscriptions",
-205
       "type": "Organization",
-206
       "url": "https://api.github.com/users/cncf-infra"
-207
-    },
-208
-    "private": false,
-209
-    "pulls_url": "https://api.github.com/repos/cncf-infra/mock-project-repo/pulls{/number}",
-210
-    "pushed_at": "2022-08-22T23:48:48Z",
-211
-    "releases_url": "https://api.github.com/repos/cncf-infra/mock-project-repo/releases{/id}",
-212
-    "size": 15,
-213
-    "ssh_url": "git@github.com:cncf-infra/mock-project-repo.git",
-214
-    "stargazers_count": 0,
-215
-    "stargazers_url": "https://api.github.com/repos/cncf-infra/mock-project-repo/stargazers",
-216
-    "statuses_url": "https://api.github.com/repos/cncf-infra/mock-project-repo/statuses/{sha}",
-217
-    "subscribers_url": "https://api.github.com/repos/cncf-infra/mock-project-repo/subscribers",
-218
-    "subscription_url": "https://api.github.com/repos/cncf-infra/mock-project-repo/subscription",
-219
-    "svn_url": "https://github.com/cncf-infra/mock-project-repo",
-220
-    "tags_url": "https://api.github.com/repos/cncf-infra/mock-project-repo/tags",
-221
-    "teams_url": "https://api.github.com/repos/cncf-infra/mock-project-repo/teams",
-222
-    "topics": [],
-223
-    "trees_url": "https://api.github.com/repos/cncf-infra/mock-project-repo/git/trees{/sha}",
-224
-    "updated_at": "2022-08-15T21:42:45Z",
-225
-    "url": "https://api.github.com/repos/cncf-infra/mock-project-repo",
-226
-    "visibility": "public",
-227
-    "watchers": 0,
-228
-    "watchers_count": 0,
-229
-    "web_commit_signoff_required": false
-230
-  },
-231
-  "sender": {
-232
-    "avatar_url": "https://avatars.githubusercontent.com/u/31331?v=4",
-233
-    "events_url": "https://api.github.com/users/hh/events{/privacy}",
-234
-    "followers_url": "https://api.github.com/users/hh/followers",
-235
-    "following_url": "https://api.github.com/users/hh/following{/other_user}",
-236
-    "gists_url": "https://api.github.com/users/hh/gists{/gist_id}",
-237
-    "gravatar_id": "",
-238
-    "html_url": "https://github.com/hh",
-239
-    "id": 31331,
-240
-    "login": "hh",
-241
-    "node_id": "MDQ6VXNlcjMxMzMx",
-242
-    "organizations_url": "https://api.github.com/users/hh/orgs",
-243
-    "received_events_url": "https://api.github.com/users/hh/received_events",
-244
-    "repos_url": "https://api.github.com/users/hh/repos",
-245
-    "site_admin": false,
-246
-    "starred_url": "https://api.github.com/users/hh/starred{/owner}{/repo}",
-247
-    "subscriptions_url": "https://api.github.com/users/hh/subscriptions",
-248
-    "type": "User",
-249
-    "url": "https://api.github.com/users/hh"
-250
-  }
-251
-}
+    }

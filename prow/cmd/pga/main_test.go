@@ -17,6 +17,7 @@ limitations under the License.
 package main
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"reflect"
@@ -52,13 +53,14 @@ func Test_gatherEnvVars(t *testing.T) {
 		{
 			"Happyday scenario",
 			map[string]string{
-				ghEventPath: "",
-				ghEventName: "issueComment",
-				ghRepo:      "mockRepo",
+				ghEventPath:    "/dummy-path",
+				ghEventName:    "issueComment",
+				ghRepo:         "mockRepo",
+				repoOauthToken: "mockToken",
 			},
-			[]byte("dummy payload"),
-			[]string{},
-			[]string{},
+			[]byte("Mock Issue Comment Payload"),
+			[]string{ghEventPath, ghEventName, ghRepo, repoOauthToken},
+			[]string{"/dummy-path", "issueComment", "mockRepo", "mockToken"},
 			nil,
 			"dummy",
 		},
@@ -69,8 +71,6 @@ func Test_gatherEnvVars(t *testing.T) {
 			"GUID???",
 			test.payload,
 			test.envVars[ghRepo])
-
-		logrus = new(bytes.Buffer)
 
 		if err := processGithubAction(); err != nil {
 			t.Errorf("%s failed: %v", desc, err)

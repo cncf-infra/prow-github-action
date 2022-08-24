@@ -33,3 +33,6 @@ logexporter/cmd/logexporter
 
 # artifacts
 package-lock.json
+.completion/kind.sh
+.completion/ko.sh
+.completion/kubectl.sh
