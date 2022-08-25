@@ -23,6 +23,7 @@ import (
 
 	logrus "github.com/sirupsen/logrus"
 	github "k8s.io/test-infra/prow/github"
+	"k8s.io/test-infra/prow/plugins"
 )
 
 const (
@@ -38,7 +39,7 @@ const (
 	// pga will pick this up as an env var in a Github Action with ${{secrets.oauth}}
 	repoOauthToken = "REPO_OAUTH_TOKEN" // Stored as a secret on the repo (org level also??)
 
-	prowPlugin = "PROW_PLUGIN" // Just one for now, list of plugins later?
+	prowPlugin = "goose" // Just one for now, list of plugins later?
 )
 
 func init() {
@@ -59,7 +60,8 @@ func main() {
 
 	eventPayload := getGithubEventPayload()
 	ghClient := getGithubClient()
-	//	plugin := getProwPlugin()
+	pluginConfigAgent := getProwPluginConfigAgent()
+	logrus.Debugf("Error demuxing event %v", &pluginConfigAgent)
 
 	err := processGithubAction(eventName, "GUID???", eventPayload, repo, ghClient)
 	if err != nil {
@@ -91,14 +93,15 @@ func getGithubClient() github.Client {
 	return ghClient
 }
 
-// have to select a prow plugin to use
-func getProwPlugin() {
-	prowPlugin := os.Getenv(prowPlugin)
-	if prowPlugin == "" {
-		logrus.Fatalf("Env var %s is not set\n", prowPlugin)
+func getProwPluginConfigAgent() *plugins.ConfigAgent {
+	pluginConfigAgent := &plugins.ConfigAgent{}
+	if err := pluginConfigAgent.Load("plugins.yaml", nil, "", false, false); err != nil {
+		logrus.Fatalf("failed to load: %v", err)
 	}
-	// TODO load plugin here
+	logrus.Debugf("pluginsConfigAgent %v", pluginConfigAgent)
+	return pluginConfigAgent
 }
+
 func getGithubEventPayload() []byte {
 	path := os.Getenv(ghEventPath)
 	if path == "" {
