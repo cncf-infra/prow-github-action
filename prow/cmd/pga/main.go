@@ -89,7 +89,7 @@ func getGithubClient() github.Client {
 		logrus.WithError(err).Errorf("Error creating Github Client. Err: %v ", err)
 		logrus.WithError(err).Debugf("oauthToken: %v ", oauthToken)
 	}
-	logrus.WithError(err).Infof("creating a GH Client")
+	logrus.Debugf("GH Client created: %v ", ghClient)
 	return ghClient
 }
 

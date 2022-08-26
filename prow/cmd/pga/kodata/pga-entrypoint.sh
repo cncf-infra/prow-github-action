@@ -36,7 +36,7 @@ echo "${GITHUB_TOKEN}" > "${GITHUB_TOKENFILE}"
 set +e
 apk add git
 
-/ko-app/hook \
+/ko-app/pga \
     --config-path "${PROW_CONFIGFILE}" \
     --plugin-config "${PLUGIN_CONFIGFILE}" \
     --hmac-secret-file "${HMAC_FILE}" \
