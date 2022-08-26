@@ -13,4 +13,4 @@ builds:
     ldflags:
       - -s -w
       - -X cncf.io/cncf-infra/pga/version.Version={{.Env.VERSION}}
-      - -X cncf.io/cncf-infra/pga/version.Name=pga
+      - -X cncf.io/cncf-infra/pga/version.Name=hook
