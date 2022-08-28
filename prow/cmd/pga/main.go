@@ -18,8 +18,11 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"os"
+	"runtime/debug"
+	"sync"
 
 	logrus "github.com/sirupsen/logrus"
 	github "k8s.io/test-infra/prow/github"
@@ -39,7 +42,16 @@ const (
 	// pga will pick this up as an env var in a Github Action with ${{secrets.oauth}}
 	repoOauthToken = "REPO_OAUTH_TOKEN" // Stored as a secret on the repo (org level also??)
 
-	prowPlugin = "goose" // Just one for now, list of plugins later?
+	prowPlugin             = "goose" // Just one for now, list of plugins later?
+	failedCommentCoerceFmt = "Could not coerce %s event to a GenericCommentEvent. Unknown 'action': %q."
+)
+
+var (
+	pluginsConfig *plugins.ConfigAgent
+	clientConfig  *plugins.ClientAgent
+	ghClient      github.Client
+	// Tracks running handlers for graceful shutdown
+	wg sync.WaitGroup
 )
 
 func init() {
@@ -50,6 +62,9 @@ func init() {
 	// Only log the warning severity or above.
 	logrus.SetLevel(logrus.DebugLevel)
 	logrus.SetReportCaller(true)
+
+	clientConfig = getClientConfig()
+	pluginsConfig = getProwPluginConfigAgent()
 }
 
 // comments tagged #27150 refer to issue number on k8s/test-infra
@@ -59,9 +74,6 @@ func main() {
 	repo := getMandatoryEnvVar(ghRepo)
 
 	eventPayload := getGithubEventPayload()
-	ghClient := getGithubClient()
-	pluginConfigAgent := getProwPluginConfigAgent()
-	logrus.Debugf("Error demuxing event %v", &pluginConfigAgent)
 
 	err := processGithubAction(eventName, "GUID???", eventPayload, repo, ghClient)
 	if err != nil {
@@ -93,9 +105,15 @@ func getGithubClient() github.Client {
 	return ghClient
 }
 
+func getClientConfig() *plugins.ClientAgent {
+	clientConfig = new(plugins.ClientAgent)
+	clientConfig.GitHubClient = getGithubClient()
+	return clientConfig
+}
+
 func getProwPluginConfigAgent() *plugins.ConfigAgent {
 	pluginConfigAgent := &plugins.ConfigAgent{}
-	if err := pluginConfigAgent.Load("plugins.yaml", nil, "", false, false); err != nil {
+	if err := pluginConfigAgent.Load("./kodata/plugins.yaml", nil, "", false, false); err != nil {
 		logrus.Fatalf("failed to load: %v", err)
 	}
 	logrus.Debugf("pluginsConfigAgent %v", pluginConfigAgent)
@@ -117,13 +135,16 @@ func getGithubEventPayload() []byte {
 // #27150 https://github.com/kubernetes/test-infra/blob/master/prow/hook/server.go#L91-L176
 // Inspired by demuxEvent in above ref
 
-func processGithubAction(eventType, eventGUID string, payload []byte, srcRepo string, ghclient github.Client) error {
+func processGithubAction(eventType, eventGUID string,
+	payload []byte, srcRepo string,
+	ghclient github.Client) error {
 	l := logrus.WithFields(
 		logrus.Fields{
 			"eventType":        eventType,
 			"github.EventGUID": eventGUID,
 		},
 	)
+
 	switch eventType {
 	case "issues":
 		var i github.IssueEvent
@@ -133,13 +154,11 @@ func processGithubAction(eventType, eventGUID string, payload []byte, srcRepo st
 		i.GUID = eventGUID
 		srcRepo = i.Repo.FullName
 	case "issue_comment":
-		var ice github.IssueCommentEvent
-		if err := json.Unmarshal(payload, &ice); err != nil {
+		var event github.IssueCommentEvent
+		if err := json.Unmarshal(payload, &event); err != nil {
 			return err
 		}
-		// ice.GUID = eventGUID
-		// srcRepo = ice.Repo.FullName
-		handleIssueCommentEvent(ice)
+		go handleIssueCommentEvent(event, l)
 	case "pull_request":
 		var pr github.PullRequestEvent
 		if err := json.Unmarshal(payload, &pr); err != nil {
@@ -158,7 +177,83 @@ func processGithubAction(eventType, eventGUID string, payload []byte, srcRepo st
 	return nil
 }
 
-func handleIssueCommentEvent(ice github.IssueCommentEvent) {
-	logrus.Infof("ice %v", ice)
-	logrus.Infof("ice %v", ice)
+func handleIssueCommentEvent(event github.IssueCommentEvent, l *logrus.Entry) {
+	logrus.Infof("event payload %v", event)
+	// What plugin do we run?
+	// Let's ask the PluginConfig Agent
+	pluginsConfig.Config()
+
+	for pluginName, handler := range pluginsConfig.IssueCommentHandlers(event.Repo.Owner.Login, event.Repo.Name) {
+		wg.Add(1)
+		go func(pluginName string, handler plugins.IssueCommentHandler) {
+			defer wg.Done()
+			agent := plugins.NewAgent(nil, pluginsConfig, clientConfig, event.Repo.Owner.Login, nil, l, pluginName)
+			agent.InitializeCommentPruner(
+				event.Repo.Owner.Login,
+				event.Repo.Name,
+				event.Issue.Number,
+			)
+			// start := time.Now()
+			err := errorOnPanic(func() error { return handler(agent, event) })
+			//labels := prometheus.Labels{"event_type": logrus.Data[eventTypeField].(string), "action": string(ic.Action), "plugin": p, "took_action": strconv.FormatBool(agent.TookAction())}
+			if err != nil {
+				agent.Logger.WithError(err).Error("Error handling IssueCommentEvent.")
+				// s.Metrics.PluginHandleErrors.With(labels).Inc()
+			}
+			//  s.Metrics.PluginHandleDuration.With(labels).Observe(time.Since(start).Seconds())
+		}(pluginName, handler)
+
+	}
+	action := genericCommentAction(string(event.Action))
+	if action == "" {
+		l.Errorf(failedCommentCoerceFmt, "issue_comment", string(event.Action))
+		return
+	}
+	// handleGenericComment(
+	// 	l,
+	// 	&github.GenericCommentEvent{
+	// 		ID:           event.Issue.ID,
+	// 		NodeID:       event.Issue.NodeID,
+	// 		CommentID:    &event.Comment.ID,
+	// 		GUID:         event.GUID,
+	// 		IsPR:         event.Issue.IsPullRequest(),
+	// 		Action:       action,
+	// 		Body:         event.Comment.Body,
+	// 		HTMLURL:      event.Comment.HTMLURL,
+	// 		Number:       event.Issue.Number,
+	// 		Repo:         event.Repo,
+	// 		User:         event.Comment.User,
+	// 		IssueAuthor:  event.Issue.User,
+	// 		Assignees:    event.Issue.Assignees,
+	// 		IssueState:   event.Issue.State,
+	// 		IssueTitle:   event.Issue.Title,
+	// 		IssueBody:    event.Issue.Body,
+	// 		IssueHTMLURL: event.Issue.HTMLURL,
+	// 	},
+	// )
+
+}
+
+func errorOnPanic(f func() error) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("panic caught: %v. stack is: %s", r, debug.Stack())
+		}
+	}()
+	return f()
+}
+
+// genericCommentAction normalizes the action string to a GenericCommentEventAction or returns ""
+// if the action is unrelated to the comment text. (For example a PR 'label' action.)
+func genericCommentAction(action string) github.GenericCommentEventAction {
+	switch action {
+	case "created", "opened", "submitted":
+		return github.GenericCommentActionCreated
+	case "edited":
+		return github.GenericCommentActionEdited
+	case "deleted", "dismissed":
+		return github.GenericCommentActionDeleted
+	}
+	// The action is not related to the text body.
+	return ""
 }
