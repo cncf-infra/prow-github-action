@@ -8,8 +8,8 @@
 defaultBaseImage: alpine:3.15
 builds:
   - id: pga
-    dir: .
-    main: prow/cmd/pga
+    dir: prow/cmd/pga
+    main: .
     ldflags:
       - -s -w
       - -X cncf.io/cncf-infra/pga/version.Version={{.Env.VERSION}}
