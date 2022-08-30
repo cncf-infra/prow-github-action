@@ -188,7 +188,8 @@ func handleIssueCommentEvent(event github.IssueCommentEvent, l *logrus.Entry) {
 	i := 0
 	l.Debugf("HANDLING %v on %v", event.Action, event.Issue.ID)
 
-	for pluginName, handler := range pluginsConfig.IssueCommentHandlers(event.Repo.Owner.Login, event.Repo.Name) {
+	commentHandlerMap := pluginsConfig.IssueCommentHandlers(event.Repo.Owner.Login, event.Repo.Name)
+	for pluginName, handler := range commentHandlerMap {
 		i++
 		wg.Add(1)
 		l := logrus.WithFields(
@@ -222,7 +223,6 @@ func handleIssueCommentEvent(event github.IssueCommentEvent, l *logrus.Entry) {
 		l.Errorf(failedCommentCoerceFmt, "issue_comment", string(event.Action))
 		return
 	}
-	wg.Done()
 	// handleGenericComment(
 	// 	l,
 	// 	&github.GenericCommentEvent{
