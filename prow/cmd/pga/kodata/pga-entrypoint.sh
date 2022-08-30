@@ -42,5 +42,3 @@ apk add git
     --hmac-secret-file "${HMAC_FILE}" \
     --github-token-path "${GITHUB_TOKENFILE}" \
     --dry-run=false
-
-sleep 9999
