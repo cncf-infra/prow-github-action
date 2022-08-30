@@ -187,6 +187,7 @@ lgtm:
       - kubernetes/repo-infra
       - kubernetes/sig-release
       - kubernetes/test-infra
+      - cncf-infra/mock-project-repo
     review_acts_as_lgtm: true
   - repos:
       - kubernetes/website
@@ -872,7 +873,7 @@ plugins:
     plugins:
       - trigger
 
-  kubernetes:
+  cncf-infra/mock-project-repo:
     plugins:
       - approve
       - assign
