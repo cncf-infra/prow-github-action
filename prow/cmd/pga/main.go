@@ -61,7 +61,7 @@ func init() {
 
 	// Only log the warning severity or above.
 	logrus.SetLevel(logrus.DebugLevel)
-	logrus.SetReportCaller(true)
+	logrus.SetReportCaller(false)
 
 	clientConfig = getClientConfig()
 	pluginsConfig = getProwPluginConfigAgent()
@@ -79,6 +79,8 @@ func main() {
 	if err != nil {
 		logrus.WithError(err).Errorf("Error demuxing event %s", eventName)
 	}
+	// Wait for all handlers to complete.
+	wg.Wait()
 }
 
 func getMandatoryEnvVar(envVar string) string {
@@ -116,7 +118,7 @@ func getProwPluginConfigAgent() *plugins.ConfigAgent {
 	if err := pluginConfigAgent.Load("./kodata/plugins.yaml", nil, "", false, false); err != nil {
 		logrus.Fatalf("failed to load: %v", err)
 	}
-	logrus.Debugf("pluginsConfigAgent %v", pluginConfigAgent)
+	logrus.Debugf("pluginsConfigAgent %v", pluginConfigAgent.IssueCommentHandlers("cncf-infra", "mock-project-repo"))
 	return pluginConfigAgent
 }
 
@@ -144,7 +146,7 @@ func processGithubAction(eventType, eventGUID string,
 			"github.EventGUID": eventGUID,
 		},
 	)
-
+	logrus.Debugf("SWITCHING ON %v", eventType)
 	switch eventType {
 	case "issues":
 		var i github.IssueEvent
@@ -154,11 +156,13 @@ func processGithubAction(eventType, eventGUID string,
 		i.GUID = eventGUID
 		srcRepo = i.Repo.FullName
 	case "issue_comment":
+		logrus.Debugf("CASE %v", eventType)
 		var event github.IssueCommentEvent
 		if err := json.Unmarshal(payload, &event); err != nil {
 			return err
 		}
-		go handleIssueCommentEvent(event, l)
+		logrus.Debugf("PROCESSING PAYLOAD %v", event)
+		handleIssueCommentEvent(event, l)
 	case "pull_request":
 		var pr github.PullRequestEvent
 		if err := json.Unmarshal(payload, &pr); err != nil {
@@ -178,14 +182,24 @@ func processGithubAction(eventType, eventGUID string,
 }
 
 func handleIssueCommentEvent(event github.IssueCommentEvent, l *logrus.Entry) {
-	logrus.Infof("event payload %v", event)
 	// What plugin do we run?
 	// Let's ask the PluginConfig Agent
 	pluginsConfig.Config()
+	i := 0
+	l.Debugf("HANDLING %v on %v", event.Action, event.Issue.ID)
 
 	for pluginName, handler := range pluginsConfig.IssueCommentHandlers(event.Repo.Owner.Login, event.Repo.Name) {
+		i++
 		wg.Add(1)
+		l := logrus.WithFields(
+			logrus.Fields{
+				"Prow Plugin": pluginName,
+				"handler":     handler,
+			},
+		)
+		l.Debugf("Plugin NUMBER %d", i)
 		go func(pluginName string, handler plugins.IssueCommentHandler) {
+			logrus.Debugf("IN ISSUE COMMENTHANDLER  %v", pluginName)
 			defer wg.Done()
 			agent := plugins.NewAgent(nil, pluginsConfig, clientConfig, event.Repo.Owner.Login, nil, l, pluginName)
 			agent.InitializeCommentPruner(
@@ -202,13 +216,13 @@ func handleIssueCommentEvent(event github.IssueCommentEvent, l *logrus.Entry) {
 			}
 			//  s.Metrics.PluginHandleDuration.With(labels).Observe(time.Since(start).Seconds())
 		}(pluginName, handler)
-
 	}
 	action := genericCommentAction(string(event.Action))
 	if action == "" {
 		l.Errorf(failedCommentCoerceFmt, "issue_comment", string(event.Action))
 		return
 	}
+	wg.Done()
 	// handleGenericComment(
 	// 	l,
 	// 	&github.GenericCommentEvent{
