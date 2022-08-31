@@ -38,6 +38,8 @@ const (
 	ghEventName = "GITHUB_EVENT_NAME"
 	ghRepo      = "GITHUB_ACTION_REPOSITORY"
 
+	// 	configPath = "/var/run/ko"
+
 	// Project Admins, configure OAuth Tokens on repo as a secret
 	// pga will pick this up as an env var in a Github Action with ${{secrets.oauth}}
 	repoOauthToken = "REPO_OAUTH_TOKEN" // Stored as a secret on the repo (org level also??)
@@ -136,7 +138,7 @@ func getClientConfig() *plugins.ClientAgent {
 
 func getProwPluginConfigAgent() *plugins.ConfigAgent {
 	pluginConfigAgent := &plugins.ConfigAgent{}
-	if err := pluginConfigAgent.Load("plugins.yaml", nil, "", false, false); err != nil {
+	if err := pluginConfigAgent.Load("/var/run/ko/plugins.yaml", nil, "", false, false); err != nil {
 		logrus.Fatalf("failed to load: %v", err)
 	}
 	logrus.Debugf("pluginsConfigAgent %v", pluginConfigAgent.IssueCommentHandlers("cncf-infra", "mock-project-repo"))
