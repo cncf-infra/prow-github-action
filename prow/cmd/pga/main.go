@@ -24,6 +24,8 @@ import (
 	"runtime/debug"
 	"sync"
 
+	"github.com/a8m/tree"
+	"github.com/a8m/tree/ostree"
 	logrus "github.com/sirupsen/logrus"
 	github "k8s.io/test-infra/prow/github"
 	"k8s.io/test-infra/prow/plugins"
@@ -67,9 +69,30 @@ func init() {
 	pluginsConfig = getProwPluginConfigAgent()
 }
 
+// writes env to stdout
+// writes fs to stdout
+func ghaRuntimeInspector() {
+	logrus.Debug(os.Environ())
+	opts := &tree.Options{
+		// Fs, and OutFile are required fields.
+		// fs should implement the tree file-system interface(see: tree.Fs),
+		// and OutFile should be type io.Writer
+		Fs:      new(ostree.FS),
+		OutFile: os.Stdout,
+		// ...
+	}
+	logrus.Debug("FS Tree")
+	inf := tree.New(".")
+	// Visit all nodes recursively
+	inf.Visit(opts)
+	// Print nodes
+	inf.Print(opts)
+}
+
 // comments tagged #27150 refer to issue number on k8s/test-infra
 func main() {
 	// #27150 no Command Line Options, Github runtime supplied env vars only
+	ghaRuntimeInspector()
 	eventName := getMandatoryEnvVar(ghEventName)
 	repo := getMandatoryEnvVar(ghRepo)
 
