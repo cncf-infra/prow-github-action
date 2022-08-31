@@ -36,7 +36,7 @@ const (
 	// supplied by GH Action Runtime
 	ghEventPath = "GITHUB_EVENT_PATH"
 	ghEventName = "GITHUB_EVENT_NAME"
-	ghRepo      = "GITHUB_ACTION_REPOSITORY"
+	ghRepo      = "GITHUB_REPOSITORY"
 
 	// 	configPath = "/var/run/ko"
 
