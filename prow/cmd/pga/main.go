@@ -32,8 +32,6 @@ import (
 )
 
 const (
-	defaultWebhookPath = "/hook"
-
 	// env var names
 	// supplied by GH Action Runtime
 	ghEventPath = "GITHUB_EVENT_PATH"
@@ -72,7 +70,7 @@ func init() {
 // writes env to stdout
 // writes fs to stdout
 func ghaRuntimeInspector() {
-	logrus.Debug(os.Environ())
+	logrus.Info(os.Environ())
 	opts := &tree.Options{
 		// Fs, and OutFile are required fields.
 		// fs should implement the tree file-system interface(see: tree.Fs),
@@ -138,7 +136,7 @@ func getClientConfig() *plugins.ClientAgent {
 
 func getProwPluginConfigAgent() *plugins.ConfigAgent {
 	pluginConfigAgent := &plugins.ConfigAgent{}
-	if err := pluginConfigAgent.Load("./kodata/plugins.yaml", nil, "", false, false); err != nil {
+	if err := pluginConfigAgent.Load("plugins.yaml", nil, "", false, false); err != nil {
 		logrus.Fatalf("failed to load: %v", err)
 	}
 	logrus.Debugf("pluginsConfigAgent %v", pluginConfigAgent.IssueCommentHandlers("cncf-infra", "mock-project-repo"))
