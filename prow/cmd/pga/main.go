@@ -27,8 +27,12 @@ import (
 	"github.com/a8m/tree"
 	"github.com/a8m/tree/ostree"
 	logrus "github.com/sirupsen/logrus"
+	"k8s.io/test-infra/prow/config"
 	github "k8s.io/test-infra/prow/github"
+	_ "k8s.io/test-infra/prow/hook/plugin-imports"
 	"k8s.io/test-infra/prow/plugins"
+	"k8s.io/test-infra/prow/plugins/ownersconfig"
+	"k8s.io/test-infra/prow/repoowners"
 )
 
 const (
@@ -38,7 +42,7 @@ const (
 	ghEventName = "GITHUB_EVENT_NAME"
 	ghRepo      = "GITHUB_REPOSITORY"
 
-	// 	configPath = "/var/run/ko"
+	// configPath = "/var/run/ko"
 
 	// Project Admins, configure OAuth Tokens on repo as a secret
 	// pga will pick this up as an env var in a Github Action with ${{secrets.oauth}}
@@ -49,9 +53,11 @@ const (
 )
 
 var (
-	pluginsConfig *plugins.ConfigAgent
-	clientConfig  *plugins.ClientAgent
-	ghClient      github.Client
+	pluginsConfig      *plugins.ConfigAgent
+	clientConfig       *plugins.ClientAgent
+	configurationAgent *config.Agent
+	ghClient           github.Client
+	// ownersClient
 	// Tracks running handlers for graceful shutdown
 	wg sync.WaitGroup
 )
@@ -65,12 +71,15 @@ func init() {
 	logrus.SetLevel(logrus.DebugLevel)
 	logrus.SetReportCaller(false)
 
-	clientConfig = getClientConfig()
 	pluginsConfig = getProwPluginConfigAgent()
+	configurationAgent = getConfigAgent()
 }
 
 // writes env to stdout
 // writes fs to stdout
+// TODO Optionally create downloadable artefacts on GHA that would
+// allow us to go run pga bootstrapped with the data gathered up on
+// GHA
 func ghaRuntimeInspector() {
 	logrus.Info(os.Environ())
 	opts := &tree.Options{
@@ -97,7 +106,7 @@ func main() {
 	repo := getMandatoryEnvVar(ghRepo)
 
 	eventPayload := getGithubEventPayload()
-
+	clientConfig = getClientConfig(repo)
 	err := processGithubAction(eventName, "GUID???", eventPayload, repo, ghClient)
 	if err != nil {
 		logrus.WithError(err).Errorf("Error demuxing event %s", eventName)
@@ -130,18 +139,62 @@ func getGithubClient() github.Client {
 	return ghClient
 }
 
-func getClientConfig() *plugins.ClientAgent {
+func getClientConfig(repo string) *plugins.ClientAgent {
 	clientConfig = new(plugins.ClientAgent)
 	clientConfig.GitHubClient = getGithubClient()
+	clientConfig.OwnersClient = getOwnersClient(repo)
 	return clientConfig
+}
+
+func getOwnersClient(repo string) repoowners.Interface {
+	mdYAMLEnabled := func(org, repo string) bool {
+		return pluginsConfig.Config().MDYAMLEnabled(org, repo)
+	}
+	skipCollaborators := func(org, repo string) bool {
+		return pluginsConfig.Config().SkipCollaborators(org, repo)
+	}
+	ownersDirDenylist := func() *config.OwnersDirDenylist {
+		// OwnersDirDenylist struct contains some defaults that's required by all
+		// repos, so this function cannot return nil
+		res := &config.OwnersDirDenylist{}
+		if l := getConfigAgent().Config().OwnersDirDenylist; l != nil {
+			res = l
+		}
+		return res
+	}
+	resolver := func(org, repo string) ownersconfig.Filenames {
+		return pluginsConfig.Config().OwnersFilenames(org, repo)
+	}
+
+	ownersClient := repoowners.NewClient(
+		clientConfig.GitClient,
+		getGithubClient(),
+		mdYAMLEnabled,
+		skipCollaborators, ownersDirDenylist, resolver)
+	return ownersClient
+}
+
+// func getGithubToken() func() []byte {
+// 	return func() []byte {
+// 		oauthToken := getMandatoryEnvVar(repoOauthToken)
+// 		return []byte(oauthToken)
+// 	}
+// }
+func getConfigAgent() *config.Agent {
+	configAgent := &config.Agent{}
+
+	configAgent.Start("./kodata/config.yaml", "kodata/emptyJobConfig.yaml", []string{}, "")
+	return configAgent
 }
 
 func getProwPluginConfigAgent() *plugins.ConfigAgent {
 	pluginConfigAgent := &plugins.ConfigAgent{}
-	if err := pluginConfigAgent.Load("/var/run/ko/plugins.yaml", nil, "", false, false); err != nil {
+	// if err := pluginConfigAgent.Load("/var/run/ko/plugins.yaml", nil, "", false, false); err != nil {
+	if err := pluginConfigAgent.Load("./kodata/plugins.yaml", nil, "", false, true); err != nil {
 		logrus.Fatalf("failed to load: %v", err)
 	}
-	logrus.Debugf("pluginsConfigAgent %v", pluginConfigAgent.IssueCommentHandlers("cncf-infra", "mock-project-repo"))
+	logrus.Debugf("IssueCommentHandlers %v", pluginConfigAgent.IssueCommentHandlers("cncf-infra", "mock-project-repo"))
+	logrus.Debugf("GenericCommentHandlers %v", pluginConfigAgent.GenericCommentHandlers("cncf-infra", "mock-project-repo"))
 	return pluginConfigAgent
 }
 
@@ -205,13 +258,26 @@ func processGithubAction(eventType, eventGUID string,
 }
 
 func handleIssueCommentEvent(event github.IssueCommentEvent, l *logrus.Entry) {
-	// What plugin do we run?
-	// Let's ask the PluginConfig Agent
-	pluginsConfig.Config()
-	i := 0
+
+	l = l.WithFields(logrus.Fields{
+		github.OrgLogField:  event.Repo.Owner.Login,
+		github.RepoLogField: event.Repo.Name,
+		github.PrLogField:   event.Issue.Number,
+		"author":            event.Comment.User.Login,
+		"url":               event.Comment.HTMLURL,
+	})
+
 	l.Debugf("HANDLING %v on %v", event.Action, event.Issue.ID)
 
 	commentHandlerMap := pluginsConfig.IssueCommentHandlers(event.Repo.Owner.Login, event.Repo.Name)
+
+	l.Debugf("commentHandlerMap %v ", commentHandlerMap)
+
+	if len(commentHandlerMap) == 0 {
+		l.Debugf("No Issue comment handlers handlers configured for %v ", event.Repo.FullName)
+	}
+
+	i := 0
 	for pluginName, handler := range commentHandlerMap {
 		i++
 		wg.Add(1)
@@ -221,11 +287,13 @@ func handleIssueCommentEvent(event github.IssueCommentEvent, l *logrus.Entry) {
 				"handler":     handler,
 			},
 		)
+
 		l.Debugf("Plugin NUMBER %d", i)
 		go func(pluginName string, handler plugins.IssueCommentHandler) {
-			logrus.Debugf("IN ISSUE COMMENTHANDLER  %v", pluginName)
+			l.Debugf("IN ISSUE COMMENTHANDLER  %v", pluginName)
 			defer wg.Done()
-			agent := plugins.NewAgent(nil, pluginsConfig, clientConfig, event.Repo.Owner.Login, nil, l, pluginName)
+			agent := plugins.NewAgent(
+				configurationAgent, pluginsConfig, clientConfig, event.Repo.Owner.Login, nil, l, pluginName)
 			agent.InitializeCommentPruner(
 				event.Repo.Owner.Login,
 				event.Repo.Name,
@@ -246,29 +314,53 @@ func handleIssueCommentEvent(event github.IssueCommentEvent, l *logrus.Entry) {
 		l.Errorf(failedCommentCoerceFmt, "issue_comment", string(event.Action))
 		return
 	}
-	// handleGenericComment(
-	// 	l,
-	// 	&github.GenericCommentEvent{
-	// 		ID:           event.Issue.ID,
-	// 		NodeID:       event.Issue.NodeID,
-	// 		CommentID:    &event.Comment.ID,
-	// 		GUID:         event.GUID,
-	// 		IsPR:         event.Issue.IsPullRequest(),
-	// 		Action:       action,
-	// 		Body:         event.Comment.Body,
-	// 		HTMLURL:      event.Comment.HTMLURL,
-	// 		Number:       event.Issue.Number,
-	// 		Repo:         event.Repo,
-	// 		User:         event.Comment.User,
-	// 		IssueAuthor:  event.Issue.User,
-	// 		Assignees:    event.Issue.Assignees,
-	// 		IssueState:   event.Issue.State,
-	// 		IssueTitle:   event.Issue.Title,
-	// 		IssueBody:    event.Issue.Body,
-	// 		IssueHTMLURL: event.Issue.HTMLURL,
-	// 	},
-	// )
+	handleGenericComment(
+		l,
+		&github.GenericCommentEvent{
+			ID:           event.Issue.ID,
+			NodeID:       event.Issue.NodeID,
+			CommentID:    &event.Comment.ID,
+			GUID:         event.GUID,
+			IsPR:         event.Issue.IsPullRequest(),
+			Action:       action,
+			Body:         event.Comment.Body,
+			HTMLURL:      event.Comment.HTMLURL,
+			Number:       event.Issue.Number,
+			Repo:         event.Repo,
+			User:         event.Comment.User,
+			IssueAuthor:  event.Issue.User,
+			Assignees:    event.Issue.Assignees,
+			IssueState:   event.Issue.State,
+			IssueTitle:   event.Issue.Title,
+			IssueBody:    event.Issue.Body,
+			IssueHTMLURL: event.Issue.HTMLURL,
+		},
+	)
 
+}
+
+func handleGenericComment(l *logrus.Entry, ce *github.GenericCommentEvent) {
+	gnrcCommentHandlerMap := getProwPluginConfigAgent().GenericCommentHandlers(ce.Repo.Owner.Login, ce.Repo.Name)
+	for p, h := range gnrcCommentHandlerMap {
+		wg.Add(1)
+		go func(pluginName string, h plugins.GenericCommentHandler) {
+			defer wg.Done()
+			// agent := plugins.NewAgent(s.ConfigAgent, s.Plugins, s.ClientAgent, ce.Repo.Owner.Login, s.Metrics.Metrics, l, p)
+			agent := plugins.NewAgent(configurationAgent, pluginsConfig, clientConfig, ce.Repo.Owner.Login, nil, l, pluginName)
+			agent.InitializeCommentPruner(
+				ce.Repo.Owner.Login,
+				ce.Repo.Name,
+				ce.Number,
+			)
+			// start := time.Now()
+			err := errorOnPanic(func() error { return h(agent, *ce) })
+			// labels := prometheus.Labels{"event_type": l.Data[eventTypeField].(string), "action": string(ce.Action), "plugin": p, "took_action": strconv.FormatBool(agent.TookAction())}
+			if err != nil {
+				agent.Logger.WithError(err).Error("Error handling GenericCommentEvent.")
+			}
+			// Metrics.PluginHandleDuration.With(labels).Observe(time.Since(start).Seconds())
+		}(p, h)
+	}
 }
 
 func errorOnPanic(f func() error) (err error) {
