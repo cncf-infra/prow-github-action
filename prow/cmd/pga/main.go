@@ -91,10 +91,10 @@ func ghaRuntimeInspector() {
 		// fs should implement the tree file-system interface(see: tree.Fs),
 		// and OutFile should be type io.Writer
 		Fs:      new(ostree.FS),
-		OutFile: os.Stdout,
+		OutFile: logrus.New().Out,
 		// ...
 	}
-	logrus.Debug("FS Tree")
+	logrus.Info("FS Tree")
 	inf := tree.New(".")
 	// Visit all nodes recursively
 	inf.Visit(opts)
