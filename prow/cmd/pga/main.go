@@ -27,6 +27,7 @@ import (
 	"github.com/a8m/tree"
 	"github.com/a8m/tree/ostree"
 	logrus "github.com/sirupsen/logrus"
+	"k8s.io/test-infra/prow/bugzilla"
 	"k8s.io/test-infra/prow/config"
 	github "k8s.io/test-infra/prow/github"
 	_ "k8s.io/test-infra/prow/hook/plugin-imports"
@@ -143,6 +144,7 @@ func getClientConfig(repo string) *plugins.ClientAgent {
 	clientConfig = new(plugins.ClientAgent)
 	clientConfig.GitHubClient = getGithubClient()
 	clientConfig.OwnersClient = getOwnersClient(repo)
+	clientConfig.BugzillaClient = &bugzilla.Fake{}
 	return clientConfig
 }
 
