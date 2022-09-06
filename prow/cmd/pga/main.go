@@ -43,7 +43,7 @@ const (
 	ghEventName = "GITHUB_EVENT_NAME"
 	ghRepo      = "GITHUB_REPOSITORY"
 
-	// configPath = "/var/run/ko"
+	pgaLocalRun = "PGA_LOCAL"
 
 	// Project Admins, configure OAuth Tokens on repo as a secret
 	// pga will pick this up as an env var in a Github Action with ${{secrets.oauth}}
@@ -58,6 +58,7 @@ var (
 	clientConfig       *plugins.ClientAgent
 	configurationAgent *config.Agent
 	ghClient           github.Client
+	configDir          string
 	// ownersClient
 	// Tracks running handlers for graceful shutdown
 	wg sync.WaitGroup
@@ -71,6 +72,8 @@ func init() {
 	// Only log the warning severity or above.
 	logrus.SetLevel(logrus.DebugLevel)
 	logrus.SetReportCaller(false)
+
+	setupConfigDirLocation()
 
 	pluginsConfig = getProwPluginConfigAgent()
 	configurationAgent = getConfigAgent()
@@ -116,6 +119,25 @@ func main() {
 	wg.Wait()
 }
 
+// setupConfigDirLocation changes the dir used to search for config files
+// so that pga can run from the command line in a dev environment or can
+// run as part of the container image that implements the Cutom Github action
+// prow-github-action
+//
+// Checks if the optional env var identified by the const pgaLocalRun is set
+//  ./kodata for local dev
+//  /var/run/ko/ for running in container
+func setupConfigDirLocation() {
+	runLocally := getOptionalEnvVar(pgaLocalRun)
+	logrus.Infof("runLocally is %s", runLocally)
+	if len(runLocally) > 0 {
+		configDir = "./kodata/"
+	} else {
+		configDir = "/var/run/ko/"
+	}
+	logrus.Infof("configDir is %s", configDir)
+
+}
 func getMandatoryEnvVar(envVar string) string {
 	value := os.Getenv(envVar)
 	if value == "" {
@@ -123,6 +145,12 @@ func getMandatoryEnvVar(envVar string) string {
 	}
 	logrus.Infof("env |%v=%v|", envVar, value)
 
+	return value
+}
+
+func getOptionalEnvVar(envVar string) string {
+	value := os.Getenv(envVar)
+	logrus.Infof("env |%v=%v|", envVar, value)
 	return value
 }
 
@@ -185,15 +213,15 @@ func getOwnersClient(repo string) repoowners.Interface {
 func getConfigAgent() *config.Agent {
 	configAgent := &config.Agent{}
 
-	configAgent.Start("./kodata/config.yaml", "kodata/emptyJobConfig.yaml", []string{}, "")
+	configAgent.Start(configDir+"config.yaml", configDir+"emptyJobConfig.yaml", []string{}, "")
 	return configAgent
 }
 
 func getProwPluginConfigAgent() *plugins.ConfigAgent {
 	pluginConfigAgent := &plugins.ConfigAgent{}
-	// if err := pluginConfigAgent.Load("/var/run/ko/plugins.yaml", nil, "", false, false); err != nil {
-	if err := pluginConfigAgent.Load("./kodata/plugins.yaml", nil, "", false, true); err != nil {
-		logrus.Fatalf("failed to load: %v", err)
+	if err := pluginConfigAgent.Load(configDir+"plugins.yaml", nil, "", false, false); err != nil {
+		// TODO if err := pluginConfigAgent.Load("./kodata/plugins.yaml", nil, "", false, true); err != nil {
+		logrus.Fatalf("getProwPluginConfigAgent: pluginConfigAgent.Load %v", configDir+"plugins.yaml")
 	}
 	logrus.Debugf("IssueCommentHandlers %v", pluginConfigAgent.IssueCommentHandlers("cncf-infra", "mock-project-repo"))
 	logrus.Debugf("GenericCommentHandlers %v", pluginConfigAgent.GenericCommentHandlers("cncf-infra", "mock-project-repo"))
@@ -215,9 +243,7 @@ func getGithubEventPayload() []byte {
 // #27150 https://github.com/kubernetes/test-infra/blob/master/prow/hook/server.go#L91-L176
 // Inspired by demuxEvent in above ref
 
-func processGithubAction(eventType, eventGUID string,
-	payload []byte, srcRepo string,
-	ghclient github.Client) error {
+func processGithubAction(eventType, eventGUID string, payload []byte, srcRepo string, ghclient github.Client) error {
 	l := logrus.WithFields(
 		logrus.Fields{
 			"eventType":        eventType,
