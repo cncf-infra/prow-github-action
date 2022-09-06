@@ -41,11 +41,8 @@ echo "${UNSPLASH_ACCESS_KEY}" > "${UNSPLASH_KEYFILE}"
 set +e
 apk add git
 
-/ko-app/hook \
-    --config-path "${PROW_CONFIGFILE}" \
+/ko-app/pga  --config-path "${PROW_CONFIGFILE}" \
     --plugin-config "${PLUGIN_CONFIGFILE}" \
     --hmac-secret-file "${HMAC_FILE}" \
     --github-token-path "${GITHUB_TOKENFILE}" \
     --dry-run=false
-
-sleep 9999
