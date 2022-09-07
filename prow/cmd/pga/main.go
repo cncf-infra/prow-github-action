@@ -47,7 +47,7 @@ const (
 	pgaLocalRun = "PGA_LOCAL"
 
 	// Project Admins, configure OAuth Tokens on repo as a secret
-	// pga will pick this up as an env var in a Github Action with ${{secrets.oauth}}
+	// pga will pick this up as an env var in a Github Action with ${{secrets.git statoauth}}
 	repoOauthToken = "REPO_OAUTH_TOKEN" // Stored as a secret on the repo (org level also??)
 
 	failedCommentCoerceFmt = "Could not coerce %s event to a GenericCommentEvent. Unknown 'action': %q."
@@ -385,7 +385,7 @@ func handleGenericComment(l *logrus.Entry, ce *github.GenericCommentEvent) {
 			err := errorOnPanic(func() error { return h(agent, *ce) })
 			// labels := prometheus.Labels{"event_type": l.Data[eventTypeField].(string), "action": string(ce.Action), "plugin": p, "took_action": strconv.FormatBool(agent.TookAction())}
 			if err != nil {
-				agent.Logger.WithError(err).Error("Error handling GenericCommentEvent.")
+				agent.Logger.WithError(err).Errorf("handleGenericComment error for the %v plugin on its handler %v", pluginName, h)
 			}
 			// Metrics.PluginHandleDuration.With(labels).Observe(time.Since(start).Seconds())
 		}(p, h)
