@@ -205,12 +205,6 @@ func getOwnersClient(repo string) repoowners.Interface {
 	return ownersClient
 }
 
-// func getGithubToken() func() []byte {
-// 	return func() []byte {
-// 		oauthToken := getMandatoryEnvVar(repoOauthToken)
-// 		return []byte(oauthToken)
-// 	}
-// }
 func getConfigAgent() *config.Agent {
 	configAgent := &config.Agent{}
 
@@ -259,7 +253,6 @@ func processGithubAction(eventType, eventGUID string, payload []byte, srcRepo st
 			return err
 		}
 		i.GUID = eventGUID
-		srcRepo = i.Repo.FullName
 	case "issue_comment":
 		logrus.Debugf("CASE %v", eventType)
 		var event github.IssueCommentEvent
@@ -274,13 +267,11 @@ func processGithubAction(eventType, eventGUID string, payload []byte, srcRepo st
 			return err
 		}
 		pr.GUID = eventGUID
-		srcRepo = pr.Repo.FullName
 	default:
 		var ge github.GenericEvent
 		if err := json.Unmarshal(payload, &ge); err != nil {
 			return err
 		}
-		srcRepo = ge.Repo.FullName
 		l.Debug("Ignoring unhandled event type. ( k8s/test-infra issue #27150 No external plugins for now.)")
 	}
 	return nil
@@ -382,6 +373,7 @@ func handleGenericComment(l *logrus.Entry, ce *github.GenericCommentEvent) {
 				ce.Number,
 			)
 			// start := time.Now()
+			l.Infof("giAgent is %v", agent)
 			err := errorOnPanic(func() error { return h(agent, *ce) })
 			// labels := prometheus.Labels{"event_type": l.Data[eventTypeField].(string), "action": string(ce.Action), "plugin": p, "took_action": strconv.FormatBool(agent.TookAction())}
 			if err != nil {
@@ -395,7 +387,7 @@ func handleGenericComment(l *logrus.Entry, ce *github.GenericCommentEvent) {
 func errorOnPanic(f func() error) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			err = fmt.Errorf("panic caught: %v. stack is: %s", r, debug.Stack())
+			err = fmt.Errorf("panic caught: |%v|. stack is: |%s|, unwrapped is |%v|", r, debug.Stack())
 		}
 	}()
 	return f()
