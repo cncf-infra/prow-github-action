@@ -71,7 +71,7 @@ func init() {
 
 	// Only log the warning severity or above.
 	logrus.SetLevel(logrus.DebugLevel)
-	logrus.SetReportCaller(false)
+	logrus.SetReportCaller(true)
 
 	setupConfigDirLocation()
 
