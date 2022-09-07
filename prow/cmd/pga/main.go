@@ -111,7 +111,7 @@ func main() {
 
 	eventPayload := getGithubEventPayload()
 	clientConfig = getClientConfig(repo)
-	err := processGithubAction(eventName, "GUID???", eventPayload, repo, ghClient)
+	err := processGithubAction(eventName, eventPayload, repo, ghClient)
 	if err != nil {
 		logrus.WithError(err).Errorf("Error demuxing event %s", eventName)
 	}
@@ -136,7 +136,6 @@ func setupConfigDirLocation() {
 		configDir = "/var/run/ko/"
 	}
 	logrus.Infof("configDir is %s", configDir)
-
 }
 func getMandatoryEnvVar(envVar string) string {
 	value := os.Getenv(envVar)
@@ -207,7 +206,6 @@ func getOwnersClient(repo string) repoowners.Interface {
 
 func getConfigAgent() *config.Agent {
 	configAgent := &config.Agent{}
-
 	configAgent.Start(configDir+"config.yaml", configDir+"emptyJobConfig.yaml", []string{}, "")
 	return configAgent
 }
@@ -238,11 +236,10 @@ func getGithubEventPayload() []byte {
 // #27150 https://github.com/kubernetes/test-infra/blob/master/prow/hook/server.go#L91-L176
 // Inspired by demuxEvent in above ref
 
-func processGithubAction(eventType, eventGUID string, payload []byte, srcRepo string, ghclient github.Client) error {
+func processGithubAction(eventType string, payload []byte, srcRepo string, ghclient github.Client) error {
 	l := logrus.WithFields(
 		logrus.Fields{
-			"eventType":        eventType,
-			"github.EventGUID": eventGUID,
+			"eventType": eventType,
 		},
 	)
 	logrus.Debugf("SWITCHING ON %v", eventType)
@@ -252,7 +249,6 @@ func processGithubAction(eventType, eventGUID string, payload []byte, srcRepo st
 		if err := json.Unmarshal(payload, &i); err != nil {
 			return err
 		}
-		i.GUID = eventGUID
 	case "issue_comment":
 		logrus.Debugf("CASE %v", eventType)
 		var event github.IssueCommentEvent
@@ -266,7 +262,6 @@ func processGithubAction(eventType, eventGUID string, payload []byte, srcRepo st
 		if err := json.Unmarshal(payload, &pr); err != nil {
 			return err
 		}
-		pr.GUID = eventGUID
 	default:
 		var ge github.GenericEvent
 		if err := json.Unmarshal(payload, &ge); err != nil {
