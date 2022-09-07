@@ -107,35 +107,5 @@ plugins:
 
   cncf-infra/mock-project-repo:
     plugins:
-      - approve
-      - assign
-      - blunderbuss
-      - cat
-      - cla
-      - dog
-      - golint
       - goose
-      - heart
-      - help
-      - hold
-      - invalidcommitmsg
-      - label
-      - lgtm
-      - lifecycle
-      - milestoneapplier
-      - owners-label
-      - pony
-      - retitle
-      - shrug
-      - sigmention
-      - size
-      - skip
-      - slackevents
-      - testfreeze
-      - transfer-issue
-      - trick-or-treat
-      - trigger
-      - verify-owners
-      - welcome
-      - wip
       - yuks
