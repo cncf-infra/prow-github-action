@@ -223,7 +223,7 @@ func getProwPluginConfigAgent() *plugins.ConfigAgent {
 	pluginConfigAgent := &plugins.ConfigAgent{}
 	if err := pluginConfigAgent.Load(configDir+"plugins.yaml", nil, "", false, false); err != nil {
 		// TODO if err := pluginConfigAgent.Load("./kodata/plugins.yaml", nil, "", false, true); err != nil {
-		logrus.Fatalf("getProwPluginConfigAgent: pluginConfigAgent.Load %v", configDir+"plugins.yaml")
+		logrus.WithError(err).Fatalf("getProwPluginConfigAgent: pluginConfigAgent.Load %v", configDir+"plugins.yaml")
 	}
 	logrus.Debugf("IssueCommentHandlers %v", pluginConfigAgent.IssueCommentHandlers("cncf-infra", "mock-project-repo"))
 	logrus.Debugf("GenericCommentHandlers %v", pluginConfigAgent.GenericCommentHandlers("cncf-infra", "mock-project-repo"))
