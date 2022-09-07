@@ -34,6 +34,7 @@ import (
 	"k8s.io/test-infra/prow/plugins"
 	"k8s.io/test-infra/prow/plugins/ownersconfig"
 	"k8s.io/test-infra/prow/repoowners"
+	"k8s.io/test-infra/prow/slack"
 )
 
 const (
@@ -173,6 +174,7 @@ func getClientConfig(repo string) *plugins.ClientAgent {
 	clientConfig.GitHubClient = getGithubClient()
 	clientConfig.OwnersClient = getOwnersClient(repo)
 	clientConfig.BugzillaClient = &bugzilla.Fake{}
+	clientConfig.SlackClient = slack.NewFakeClient()
 	return clientConfig
 }
 
