@@ -50,7 +50,6 @@ const (
 	// pga will pick this up as an env var in a Github Action with ${{secrets.oauth}}
 	repoOauthToken = "REPO_OAUTH_TOKEN" // Stored as a secret on the repo (org level also??)
 
-	prowPlugin             = "goose" // Just one for now, list of plugins later?
 	failedCommentCoerceFmt = "Could not coerce %s event to a GenericCommentEvent. Unknown 'action': %q."
 )
 
