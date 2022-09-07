@@ -37,11 +37,15 @@ fi
 echo "${GITHUB_TOKEN}" > "${GITHUB_TOKENFILE}"
 echo "${UNSPLASH_ACCESS_KEY}" > "${UNSPLASH_KEYFILE}"
 
-
 set +e
 apk add git
 
-/ko-app/pga  --config-path "${PROW_CONFIGFILE}" \
+ls -l /var/run/ko/plugins.yaml
+ls -l $HOME/plugins.yaml && echo $HOME/plugins.yaml
+ls -l ${UNSPLASH_KEYFILE}
+cat $HOME/plugins.yaml
+
+/ko-app/pga --config-path "${PROW_CONFIGFILE}" \
     --plugin-config "${PLUGIN_CONFIGFILE}" \
     --hmac-secret-file "${HMAC_FILE}" \
     --github-token-path "${GITHUB_TOKENFILE}" \
