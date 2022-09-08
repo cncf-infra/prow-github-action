@@ -855,6 +855,7 @@ plugins:
       - blunderbuss # Auto-assign people
       - cat # /meow replies with cat pictures
       - dog # /bark replies with dog pictures
+      - goose # /honk honk that's sound of the geese 
       - help # Support /help and /good-first-issue
       - hold # Support /hold to delay merge
       - lgtm # Allow /lgtm

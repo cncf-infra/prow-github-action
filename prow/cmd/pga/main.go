@@ -155,10 +155,19 @@ func getOptionalEnvVar(envVar string) string {
 
 func getGithubClient() github.Client {
 	oauthToken := getMandatoryEnvVar(repoOauthToken) // TODO Mandatory for now, app auth also available??
-	options := new(github.ClientOptions)
-	options.GetToken = func() []byte { return []byte(oauthToken) }
 
-	_, _, ghClient, err := github.NewClientFromOptions(logrus.Fields{}, (*options))
+	_, _, ghClient, err := github.NewClientFromOptions(logrus.Fields{},
+		github.ClientOptions{
+			Censor:          func(b []byte) []byte { return b },
+			GetToken:        func() []byte { return []byte(oauthToken) },
+			AppID:           "",
+			AppPrivateKey:   nil,
+			GraphqlEndpoint: "",
+			Bases:           []string{"https://api.github.com"},
+			DryRun:          false,
+		}.Default(),
+	)
+
 	if err != nil {
 		logrus.WithError(err).Errorf("Error creating Github Client. Err: %v ", err)
 		logrus.WithError(err).Debugf("oauthToken: %v ", oauthToken)
@@ -368,7 +377,7 @@ func handleGenericComment(l *logrus.Entry, ce *github.GenericCommentEvent) {
 				ce.Number,
 			)
 			// start := time.Now()
-			l.Infof("giAgent is %v", agent)
+			l.Infof("GH  is %v", agent.GitHubClient)
 			err := errorOnPanic(func() error { return h(agent, *ce) })
 			// labels := prometheus.Labels{"event_type": l.Data[eventTypeField].(string), "action": string(ce.Action), "plugin": p, "took_action": strconv.FormatBool(agent.TookAction())}
 			if err != nil {
