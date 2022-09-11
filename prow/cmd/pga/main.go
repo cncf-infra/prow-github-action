@@ -277,7 +277,7 @@ func processGithubAction(eventType string, payload []byte, srcRepo string, ghcli
 func storeDataAsArtefact(fileName string, data []byte) {
 	if logrus.GetLevel() == logrus.DebugLevel {
 		// Open payload.json file
-		err := os.WriteFile("/github/workspace"+fileName, data, 0644)
+		err := os.WriteFile(fileName, data, 0644)
 		if err != nil {
 			logrus.Error(err)
 		}
