@@ -82,6 +82,11 @@ func init() {
 // as a build artefact for later developments and testing.
 func ghaWriteEnvVarsToFile() {
 	if logrus.GetLevel() == logrus.DebugLevel {
+		path, err := os.Getwd()
+		if err != nil {
+			logrus.Debug("Could not get working directory")
+		}
+		logrus.Debugf("working directory %s\n", path)
 		env := os.Environ()
 		var b []byte
 		for _, s := range env {
