@@ -264,7 +264,7 @@ func processGithubAction(eventType string, payload []byte, srcRepo string, ghcli
 		if err := json.Unmarshal(payload, &event); err != nil {
 			return err
 		}
-		logrus.Debugf("PROCESSING PAYLOAD %v", event)
+		logrus.Debugf("PROCESSING PAYLOAD %s", payload)
 		handleIssueCommentEvent(event, l)
 	case "pull_request":
 		var pr github.PullRequestEvent
