@@ -82,11 +82,6 @@ func init() {
 // as a build artefact for later developments and testing.
 func ghaWriteEnvVarsToFile() {
 	if logrus.GetLevel() == logrus.DebugLevel {
-		path, err := os.Getwd()
-		if err != nil {
-			logrus.Debug("Could not get working directory")
-		}
-		logrus.Debugf("working directory %s\n", path)
 		env := os.Environ()
 		var b []byte
 		for _, s := range env {
@@ -275,10 +270,16 @@ func processGithubAction(eventType string, payload []byte, srcRepo string, ghcli
 }
 
 func storeDataAsArtefact(fileName string, data []byte) {
+
 	if logrus.GetLevel() == logrus.DebugLevel {
-		// Open payload.json file
-		err := os.WriteFile(fileName, data, 0644)
+		path, err := os.Getwd()
 		if err != nil {
+			logrus.Debug("Could not get working directory")
+		}
+
+		logrus.Debugf("working directory %s\n", path)
+		e := os.WriteFile(fileName, data, 0644)
+		if e != nil {
 			logrus.Error(err)
 		}
 	}
