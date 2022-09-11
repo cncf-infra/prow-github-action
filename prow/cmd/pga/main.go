@@ -24,8 +24,6 @@ import (
 	"runtime/debug"
 	"sync"
 
-	"github.com/a8m/tree"
-	"github.com/a8m/tree/ostree"
 	logrus "github.com/sirupsen/logrus"
 	"k8s.io/test-infra/prow/bugzilla"
 	"k8s.io/test-infra/prow/config"
@@ -79,33 +77,25 @@ func init() {
 	configurationAgent = getConfigAgent()
 }
 
-// writes env to stdout
-// writes fs to stdout
-// TODO Optionally create downloadable artefacts on GHA that would
-// allow us to go run pga bootstrapped with the data gathered up on
-// GHA
-func ghaRuntimeInspector() {
-	logrus.Info(os.Environ())
-	opts := &tree.Options{
-		// Fs, and OutFile are required fields.
-		// fs should implement the tree file-system interface(see: tree.Fs),
-		// and OutFile should be type io.Writer
-		Fs:      new(ostree.FS),
-		OutFile: logrus.New().Out,
-		// ...
+// writes environment variables to a file called env when
+// logrus.DebugLevel is set. The env file can can be captured
+// as a build artefact for later developments and testing.
+func ghaWriteEnvVarsToFile() {
+	if logrus.GetLevel() == logrus.DebugLevel {
+		env := os.Environ()
+		var b []byte
+		for _, s := range env {
+			envTuple := s + string('\n')
+			b = append(b, envTuple...)
+		}
+		storeDataAsArtefact("env", b)
 	}
-	logrus.Info("FS Tree")
-	inf := tree.New(".")
-	// Visit all nodes recursively
-	inf.Visit(opts)
-	// Print nodes
-	inf.Print(opts)
 }
 
 // comments tagged #27150 refer to issue number on k8s/test-infra
 func main() {
 	// #27150 no Command Line Options, Github runtime supplied env vars only
-	ghaRuntimeInspector()
+	ghaWriteEnvVarsToFile()
 	eventName := getMandatoryEnvVar(ghEventName)
 	repo := getMandatoryEnvVar(ghRepo)
 
@@ -251,7 +241,6 @@ func processGithubAction(eventType string, payload []byte, srcRepo string, ghcli
 			"eventType": eventType,
 		},
 	)
-	logrus.Debugf("SWITCHING ON %v", eventType)
 	switch eventType {
 	case "issues":
 		var i github.IssueEvent
@@ -259,12 +248,11 @@ func processGithubAction(eventType string, payload []byte, srcRepo string, ghcli
 			return err
 		}
 	case "issue_comment":
-		logrus.Debugf("CASE %v", eventType)
 		var event github.IssueCommentEvent
 		if err := json.Unmarshal(payload, &event); err != nil {
 			return err
 		}
-		logrus.Debugf("PROCESSING PAYLOAD %s", payload)
+		storeDataAsArtefact("event.json", payload)
 		handleIssueCommentEvent(event, l)
 	case "pull_request":
 		var pr github.PullRequestEvent
@@ -281,6 +269,15 @@ func processGithubAction(eventType string, payload []byte, srcRepo string, ghcli
 	return nil
 }
 
+func storeDataAsArtefact(fileName string, data []byte) {
+	if logrus.GetLevel() == logrus.DebugLevel {
+		// Open payload.json file
+		err := os.WriteFile(fileName, data, 0644)
+		if err != nil {
+			logrus.Error(err)
+		}
+	}
+}
 func handleIssueCommentEvent(event github.IssueCommentEvent, l *logrus.Entry) {
 
 	l = l.WithFields(logrus.Fields{
