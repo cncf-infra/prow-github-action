@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 	"runtime/debug"
 	"sync"
@@ -27,6 +28,7 @@ import (
 	logrus "github.com/sirupsen/logrus"
 	"k8s.io/test-infra/prow/bugzilla"
 	"k8s.io/test-infra/prow/config"
+	"k8s.io/test-infra/prow/git/v2"
 	github "k8s.io/test-infra/prow/github"
 	_ "k8s.io/test-infra/prow/hook/plugin-imports"
 	"k8s.io/test-infra/prow/plugins"
@@ -57,7 +59,6 @@ var (
 	configurationAgent *config.Agent
 	ghClient           github.Client
 	configDir          string
-	// ownersClient
 	// Tracks running handlers for graceful shutdown
 	wg sync.WaitGroup
 )
@@ -168,13 +169,20 @@ func getGithubClient() github.Client {
 
 func getClientConfig(repo string) *plugins.ClientAgent {
 	clientConfig = new(plugins.ClientAgent)
+	clientConfig.GitClient = getGitClient(repo)
 	clientConfig.GitHubClient = getGithubClient()
 	clientConfig.OwnersClient = getOwnersClient(repo)
 	clientConfig.BugzillaClient = &bugzilla.Fake{}
 	clientConfig.SlackClient = slack.NewFakeClient()
 	return clientConfig
 }
-
+func getGitClient(repo string) git.ClientFactory {
+	cf, err := git.NewClientFactory()
+	if err != nil {
+		log.Fatalf("Cannot initialise git client! Error is %v", err)
+	}
+	return cf
+}
 func getOwnersClient(repo string) repoowners.Interface {
 	mdYAMLEnabled := func(org, repo string) bool {
 		return pluginsConfig.Config().MDYAMLEnabled(org, repo)
