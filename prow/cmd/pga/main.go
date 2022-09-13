@@ -128,19 +128,18 @@ func setupConfigDirLocation() {
 	}
 	logrus.Infof("configDir is %s", configDir)
 }
+
+// getMandatoryEnvVar returns the value of envVar if set in the environment
+// otherwise exits if envVar is not set.
 func getMandatoryEnvVar(envVar string) string {
 	value := os.Getenv(envVar)
 	if value == "" {
 		logrus.Fatalf("Env Var %v is not set. Exiting", envVar)
 	}
-	logrus.Infof("env |%v=%v|", envVar, value)
-
 	return value
 }
-
 func getOptionalEnvVar(envVar string) string {
 	value := os.Getenv(envVar)
-	logrus.Infof("env |%v=%v|", envVar, value)
 	return value
 }
 
@@ -181,6 +180,7 @@ func getGitClient(repo string) git.ClientFactory {
 	if err != nil {
 		log.Fatalf("Cannot initialise git client! Error is %v", err)
 	}
+
 	return cf
 }
 func getOwnersClient(repo string) repoowners.Interface {
@@ -388,7 +388,6 @@ func handleGenericComment(l *logrus.Entry, ce *github.GenericCommentEvent) {
 				ce.Number,
 			)
 			// start := time.Now()
-			l.Infof("GH  is %v", agent.GitHubClient)
 			err := errorOnPanic(func() error { return h(agent, *ce) })
 			// labels := prometheus.Labels{"event_type": l.Data[eventTypeField].(string), "action": string(ce.Action), "plugin": p, "took_action": strconv.FormatBool(agent.TookAction())}
 			if err != nil {
@@ -402,7 +401,8 @@ func handleGenericComment(l *logrus.Entry, ce *github.GenericCommentEvent) {
 func errorOnPanic(f func() error) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			err = fmt.Errorf("panic caught: |%v|. stack is: |%s|, unwrapped is |%v|", r, debug.Stack())
+			err = fmt.Errorf("panic caught: |%v|", r)
+			debug.PrintStack()
 		}
 	}()
 	return f()
