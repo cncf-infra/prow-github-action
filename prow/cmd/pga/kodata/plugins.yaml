@@ -256,7 +256,8 @@ blockades:
 
 blunderbuss:
   max_request_count: 2
-  use_status_availability: true
+  use_status_availability: false
+  exclude_approvers: false
 
 cat:
   key_path: /etc/cat-api/api-key
