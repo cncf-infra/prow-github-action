@@ -794,7 +794,6 @@ plugins:
       - lifecycle # Allow /lifecycle stale
       - override
       - size # Auto-label size of PR
-      - trigger # Allow people to configure CI jobs to /test
       - verify-owners # Validates OWNERS file changes in PRs.
       - wip # Auto-hold PRs with WIP in title
       - yuks # Let prow tell a /joke
