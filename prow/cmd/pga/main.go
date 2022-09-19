@@ -78,19 +78,53 @@ func init() {
 	configurationAgent = getConfigAgent()
 }
 
-// writes environment variables to a file called env when
-// logrus.DebugLevel is set. The env file can can be captured
-// as a build artefact for later developments and testing.
+// ghaWriteEnvVarsToFile writes runtime environment variables (env vars) to a file called env
+//
+// if and only if...
+//   - logrus.DebugLevel is set
+//   - the env var is NOT present in the []string returned by getUnexportedEnvVars() string[]
+//
+// When run as part of a Github Action the env file can be found by visiting the
+// Github Repo > Actions > the Workflow Run > Summary >  Artifacts > environment variables and event payload
+//
+// Implemented for development of pga setting up tests
+//
+// For this to work the following yaml needs to be a the Github action Workflow
+//
+// ``` yaml
+// - name: "Capture runtime artefacts for development on pga"
+// uses: actions/upload-artifact@v3
+// with:
+//   name: environment variables and event payload
+//   path: ${{ github.workspace }}
+//
 func ghaWriteEnvVarsToFile() {
 	if logrus.GetLevel() == logrus.DebugLevel {
 		env := os.Environ()
 		var b []byte
+		var ignoredEnvVars = getUnexportedEnvVars()
+		var skip bool = false
+
 		for _, s := range env {
-			envTuple := s + string('\n')
-			b = append(b, envTuple...)
+			for _, excluded := range ignoredEnvVars {
+				if s == excluded {
+					skip = true
+				}
+				break
+			}
+			if !skip {
+				envTuple := s + string('\n')
+				b = append(b, envTuple...)
+				skip = false
+			}
 		}
 		storeDataAsArtefact("env", b)
 	}
+}
+
+// Returns a list of env vars that should not be archived
+func getUnexportedEnvVars() []string {
+	return []string{"PATH", "UNSPLASH_ACCESS_KEY"}
 }
 
 // comments tagged #27150 refer to issue number on k8s/test-infra
