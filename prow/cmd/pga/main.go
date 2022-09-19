@@ -154,13 +154,14 @@ func main() {
 //  /var/run/ko/ for running in container
 func setupConfigDirLocation() {
 	runLocally := getOptionalEnvVar(pgaLocalRun)
-	logrus.Infof("runLocally is %s", runLocally)
 	if len(runLocally) > 0 {
 		configDir = "./kodata/"
+		logrus.Infof("Local run. Env var %s is set. Config Dir %s", pgaLocalRun, configDir)
+
 	} else {
 		configDir = "/var/run/ko/"
+		logrus.Infof("GHA run. Env var %s is empty. Config Dir %s", pgaLocalRun, configDir)
 	}
-	logrus.Infof("configDir is %s", configDir)
 }
 
 // getMandatoryEnvVar returns the value of envVar if set in the environment
