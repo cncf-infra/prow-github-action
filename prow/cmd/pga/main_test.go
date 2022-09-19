@@ -17,173 +17,114 @@ limitations under the License.
 package main
 
 import (
-	"bytes"
-	"flag"
 	"fmt"
-	"reflect"
+	"io/ioutil"
+	"strings"
 	"testing"
-	"time"
 
-	"github.com/google/go-cmp/cmp"
-	"k8s.io/apimachinery/pkg/util/sets"
-
-	"k8s.io/test-infra/prow/flagutil"
-	configflagutil "k8s.io/test-infra/prow/flagutil/config"
-	pluginsflagutil "k8s.io/test-infra/prow/flagutil/plugins"
 	"k8s.io/test-infra/prow/plugins"
 )
 
-// Make sure that our plugins are valid.
+// Make sure that pga's plugins are valid.
 func TestPlugins(t *testing.T) {
 	pa := &plugins.ConfigAgent{}
-	if err := pa.Load("../../../config/prow/plugins.yaml", nil, "", true, false); err != nil {
+	if err := pa.Load("./kodata/plugins.yaml", nil, "", true, false); err != nil {
 		t.Fatalf("Could not load plugins: %v.", err)
 	}
 }
-func Test_gatherEnvVars(t *testing.T) {
+
+// pga is env var driven so we can make use of that fact to run local tests.
+//
+// for each test case
+// create the scenario you want to test on Github Actions
+//   capture data from Github Actions on the Job Run by going to the Summary Page of
+//   the job and downloading the job artefacts, envFile and event.json
+//   organise env vars in folders by plugin and test case setting up
+//     ./test-data/PLUGIN_NAME/TEST_CASE/envFiles
+//     ./test-data/PLUGIN_NAME/TEST_CASE/event.json
+//
+// In envFiles setting PGA_LOCAL to any string
+// allow us to config data files from ./kodata
+// instead of where ko build places those files
+//
+// This test then runs the relevent functions in pga to describe pga's behaviour
+// GITHUB_EVENT_PATH to file w/ event data
+
+func TestRunAllGutHubActionTests(t *testing.T) {
 	cases := []struct {
 		name              string
-		envVars           map[string]string
-		payload           []byte
-		expectedEnvVars   []string
-		expectedEnvValues []string
-		err               error
-		want              string
+		envFile           string
+		eventFile         string
+		expectedComment   string
+		expectedCommand   string
+		expectedLabels    []string
+		expectedAssignees []string
+		err               bool
 	}{
 		{
-			"Happyday scenario",
-			map[string]string{
-				ghEventPath:    "/dummy-path",
-				ghEventName:    "issueComment",
-				ghRepo:         "mockRepo",
-				repoOauthToken: "mockToken",
-			},
-			[]byte("Mock Issue Comment Payload"),
-			[]string{ghEventPath, ghEventName, ghRepo, repoOauthToken},
-			[]string{"/dummy-path", "issueComment", "mockRepo", "mockToken"},
-			nil,
-			"dummy",
+			name:              "The yuk plugin tells a joke",
+			envFile:           "./test-data/yuk/env",
+			eventFile:         "./test-data/yuk/event",
+			expectedCommand:   "/joke",
+			expectedComment:   "",
+			expectedLabels:    []string{},
+			expectedAssignees: []string{},
+			err:               false,
+		},
+		{
+			name:              "The Blunderbuss plugins assigns two reviewers to this PR",
+			envFile:           "./test-data/blunderbuss/auto-cc/env",
+			eventFile:         "./test-data/blunderbuss/auto-cc/event.json",
+			expectedCommand:   "/auto-cc",
+			expectedComment:   "",
+			expectedLabels:    []string{},
+			expectedAssignees: []string{"@RobKielty", "@BobyMcBobs"},
+			err:               false,
 		},
 	}
-	for _, test := range cases {
-		descr := fmt.Sprintf("githubAction(%s, %s, %s,%s)",
-			test.envVars[ghEventName],
-			"GUID???",
-			test.payload,
-			test.envVars[ghRepo])
-
-		if err := processGithubAction(); err != nil {
-			t.Errorf("%s failed: %v", desc, err)
-			continue
-		}
-		got := logrus.(*bytes.Buffer).String()
-		if got != test.want {
-			t.Errorf("%s = %q, want %q", descr, got, test.want)
-		}
-
-	}
-}
-func Test_gatherOptions(t *testing.T) {
-	cases := []struct {
-		name     string
-		args     map[string]string
-		del      sets.String
-		expected func(*options)
-		err      bool
-	}{
-		{
-			name: "minimal flags work",
-		},
-		{
-			name: "explicitly set --config-path",
-			args: map[string]string{
-				"--config-path": "/random/value",
-			},
-			expected: func(o *options) {
-				o.config.ConfigPath = "/random/value"
-			},
-		},
-		{
-			name: "expicitly set --dry-run=false",
-			args: map[string]string{
-				"--dry-run": "false",
-			},
-			expected: func(o *options) {
-				o.dryRun = false
-			},
-		},
-		{
-			name: "explicitly set --plugin-config",
-			args: map[string]string{
-				"--plugin-config": "/random/value",
-			},
-			expected: func(o *options) {
-				o.pluginsConfig.PluginConfigPath = "/random/value"
-			},
-		},
-		{
-			name: "explicitly set --webhook-path",
-			args: map[string]string{
-				"--webhook-path": "/random/hook",
-			},
-			expected: func(o *options) {
-				o.webhookPath = "/random/hook"
-			},
-		},
-	}
+	// Range over the cases, read in env vars
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			expected := &options{
-				webhookPath: "/hook",
-				port:        8888,
-				config: configflagutil.ConfigOptions{
-					ConfigPath:                            "yo",
-					ConfigPathFlagName:                    "config-path",
-					JobConfigPathFlagName:                 "job-config-path",
-					SupplementalProwConfigsFileNameSuffix: "_prowconfig.yaml",
-				},
-				pluginsConfig: pluginsflagutil.PluginOptions{
-					PluginConfigPath:                         "/etc/plugins/plugins.yaml",
-					PluginConfigPathDefault:                  "/etc/plugins/plugins.yaml",
-					SupplementalPluginsConfigsFileNameSuffix: "_pluginconfig.yaml",
-				},
-				dryRun:                 true,
-				gracePeriod:            180 * time.Second,
-				webhookSecretFile:      "/etc/webhook/hmac",
-				instrumentationOptions: flagutil.DefaultInstrumentationOptions(),
-			}
-			expectedfs := flag.NewFlagSet("fake-flags", flag.PanicOnError)
-			expected.github.AddFlags(expectedfs)
-			if tc.expected != nil {
-				tc.expected(expected)
+			// Add env vars to runtime
+			err := setEnvVarsFromFile(tc.envFile, t)
+			// For now temp set REPO_OAUTH_TOKEN on env thss making this not a unit test!
+			// TODO Inject fake GH client for proper unit testing
+			if err != nil {
+				t.Logf("Skipping %s. Cause : %v ", tc.name, err)
+				t.SkipNow()
 			}
 
-			argMap := map[string]string{
-				"--config-path": "yo",
-			}
-			for k, v := range tc.args {
-				argMap[k] = v
-			}
-			for k := range tc.del {
-				delete(argMap, k)
+			eventName := getMandatoryEnvVar(ghEventName)
+			repo := getMandatoryEnvVar(ghRepo)
+
+			eventPayload := getGithubEventPayload()
+			clientConfig = getClientConfig(repo)
+			t.Logf("eventName: %v", eventName)
+			t.Logf("repo: %v", repo)
+			t.Logf("clientConfig: %v", clientConfig)
+			t.Logf("eventPayload[0-180]: %v", string(eventPayload[0:180]))
+			pgaErr := processGithubAction(eventName, eventPayload, repo, ghClient)
+			// Check expected state
+			if pgaErr == nil {
+				fmt.Println("pga ran!?")
+			} else {
+				fmt.Printf("pga error %v", pgaErr)
 			}
 
-			var args []string
-			for k, v := range argMap {
-				args = append(args, k+"="+v)
-			}
-			fs := flag.NewFlagSet("fake-flags", flag.PanicOnError)
-			actual := gatherOptions(fs, args...)
-			switch err := actual.Validate(); {
-			case err != nil:
-				if !tc.err {
-					t.Errorf("unexpected error: %v", err)
-				}
-			case tc.err:
-				t.Errorf("failed to receive expected error")
-			case !reflect.DeepEqual(*expected, actual):
-				t.Errorf("actual differs from expected: %s", cmp.Diff(actual, *expected, cmp.Exporter(func(_ reflect.Type) bool { return true })))
-			}
 		})
 	}
+}
+
+func setEnvVarsFromFile(envFile string, t *testing.T) error {
+	data, err := ioutil.ReadFile(envFile)
+	if err != nil {
+		return err
+	}
+	for _, line := range strings.Split(string(data), "\n") {
+		if len(line) > 0 && line[0:1] != "#" { // ignore empty lines and #-commented out lines
+			kv := strings.Split(string(line), "=")
+			t.Setenv(kv[0], kv[1])
+		}
+	}
+	return nil
 }
