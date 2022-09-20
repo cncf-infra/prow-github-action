@@ -302,6 +302,9 @@ func processGithubAction(eventType string, payload []byte, srcRepo string, ghcli
 		if err := json.Unmarshal(payload, &pr); err != nil {
 			return err
 		}
+		// pr.GUID = eventGUID
+		// srcRepo = pr.Repo.FullName
+		handlePullRequestEvent(l, pr)
 	default:
 		var ge github.GenericEvent
 		if err := json.Unmarshal(payload, &ge); err != nil {
@@ -326,6 +329,61 @@ func storeDataAsArtefact(fileName string, data []byte) {
 			logrus.Error(err)
 		}
 	}
+}
+
+func handlePullRequestEvent(l *logrus.Entry, prEvent github.PullRequestEvent) {
+	l = l.WithFields(logrus.Fields{
+		github.OrgLogField:  prEvent.Repo.Owner.Login,
+		github.RepoLogField: prEvent.Repo.Name,
+		github.PrLogField:   prEvent.Number,
+		"author":            prEvent.PullRequest.User.Login,
+		"url":               prEvent.PullRequest.HTMLURL,
+	})
+	l.Infof("Pull request %s.", prEvent.Action)
+	prHandlerMap := pluginsConfig.PullRequestHandlers(
+		prEvent.PullRequest.Base.Repo.Owner.Login,
+		prEvent.PullRequest.Base.Repo.Name)
+	if len(prHandlerMap) == 0 {
+		l.Debugf("No PR comment handlers configured for %v ", prEvent.PullRequest.Base.Repo.Name)
+	}
+	for pluginName, handler := range prHandlerMap {
+		wg.Add(1)
+		go func(pluginName string, handler plugins.PullRequestHandler) {
+			defer wg.Done()
+			agent := plugins.NewAgent(configurationAgent, pluginsConfig, clientConfig, prEvent.Repo.Owner.Login, nil, l, pluginName)
+			agent.InitializeCommentPruner(
+				prEvent.Repo.Owner.Login,
+				prEvent.Repo.Name,
+				prEvent.PullRequest.Number,
+			)
+			err := errorOnPanic(func() error { return handler(agent, prEvent) })
+			if err != nil {
+				agent.Logger.WithError(err).Error("Error handling PullRequestEvent.")
+			}
+		}(pluginName, handler)
+	}
+	action := genericCommentAction(string(prEvent.Action))
+	handleGenericComment(
+		l,
+		&github.GenericCommentEvent{
+			ID:           prEvent.PullRequest.ID,
+			NodeID:       prEvent.PullRequest.NodeID,
+			GUID:         prEvent.GUID,
+			IsPR:         true,
+			Action:       action,
+			Body:         prEvent.PullRequest.Body,
+			HTMLURL:      prEvent.PullRequest.HTMLURL,
+			Number:       prEvent.PullRequest.Number,
+			Repo:         prEvent.Repo,
+			User:         prEvent.PullRequest.User,
+			IssueAuthor:  prEvent.PullRequest.User,
+			Assignees:    prEvent.PullRequest.Assignees,
+			IssueState:   prEvent.PullRequest.State,
+			IssueTitle:   prEvent.PullRequest.Title,
+			IssueBody:    prEvent.PullRequest.Body,
+			IssueHTMLURL: prEvent.PullRequest.HTMLURL,
+		},
+	)
 }
 func handleIssueCommentEvent(event github.IssueCommentEvent, l *logrus.Entry) {
 
