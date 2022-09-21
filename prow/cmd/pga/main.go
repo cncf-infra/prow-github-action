@@ -59,8 +59,7 @@ var (
 	configurationAgent *config.Agent
 	ghClient           github.Client
 	configDir          string
-	// Tracks running handlers for graceful shutdown
-	wg sync.WaitGroup
+	wg                 sync.WaitGroup
 )
 
 func init() {
@@ -145,16 +144,14 @@ func main() {
 }
 
 // setupConfigDirLocation changes the dir used to search for config files
-// so that pga can run from the command line in a dev environment or can
-// run as part of the container image that implements the Cutom Github action
-// prow-github-action
-//
-// Checks if the optional env var identified by the const pgaLocalRun is set
-//  ./kodata for local dev
-//  /var/run/ko/ for running in container
+// so that pga can run from the command line in a dev environment (a "local
+// run") or can run as part of the container image that implements the Custom
+// Github Action, prow-github-action
+// Cofiguration directories searched
+// ./kodata     for local runs
+// /var/run/ko/ for running in ko built container
 func setupConfigDirLocation() {
-	runLocally := getOptionalEnvVar(pgaLocalRun)
-	if len(runLocally) > 0 {
+	if thisIsALocalRun() {
 		configDir = "./kodata/"
 		logrus.Infof("Local run. Env var %s is set. Config Dir %s", pgaLocalRun, configDir)
 
@@ -162,6 +159,19 @@ func setupConfigDirLocation() {
 		configDir = "/var/run/ko/"
 		logrus.Infof("GHA run. Env var %s is empty. Config Dir %s", pgaLocalRun, configDir)
 	}
+}
+
+// thisIsALocalRun returns true if pgaLocalRun is set as runtime env var, false otherwise
+// used to flip between CI runtime confguration settings and development runtime configuration settings.
+func thisIsALocalRun() bool {
+	localRun := false
+
+	runLocally := getOptionalEnvVar(pgaLocalRun)
+
+	if len(runLocally) > 0 {
+		localRun = true
+	}
+	return localRun
 }
 
 // getMandatoryEnvVar returns the value of envVar if set in the environment
@@ -295,7 +305,7 @@ func processGithubAction(eventType string, payload []byte, srcRepo string, ghcli
 		if err := json.Unmarshal(payload, &event); err != nil {
 			return err
 		}
-		storeDataAsArtefact("event.json", payload)
+		storeDataAsArtefact("issue_comment_payload.json", payload)
 		handleIssueCommentEvent(event, l)
 	case "pull_request":
 		var pr github.PullRequestEvent
@@ -304,6 +314,7 @@ func processGithubAction(eventType string, payload []byte, srcRepo string, ghcli
 		}
 		// pr.GUID = eventGUID
 		// srcRepo = pr.Repo.FullName
+		storeDataAsArtefact("pull_request_payload.json", payload)
 		handlePullRequestEvent(l, pr)
 	default:
 		var ge github.GenericEvent
@@ -317,7 +328,7 @@ func processGithubAction(eventType string, payload []byte, srcRepo string, ghcli
 
 func storeDataAsArtefact(fileName string, data []byte) {
 
-	if logrus.GetLevel() == logrus.DebugLevel {
+	if logrus.GetLevel() == logrus.DebugLevel && !thisIsALocalRun() {
 		path, err := os.Getwd()
 		if err != nil {
 			logrus.Debug("Could not get working directory")
