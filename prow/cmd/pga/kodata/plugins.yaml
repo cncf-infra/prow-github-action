@@ -178,7 +178,6 @@ plugins:
       - skip
       - transfer-issue
       - trick-or-treat
-      - trigger
       - verify-owners
       - welcome
       - wip
