@@ -189,20 +189,26 @@ func getOptionalEnvVar(envVar string) string {
 }
 
 func getGithubClient() github.Client {
-	oauthToken := getMandatoryEnvVar(repoOauthToken) // TODO Mandatory for now, app auth also available??
+	oauthToken := getMandatoryEnvVar(repoOauthToken)
 
-	_, _, ghClient, err := github.NewClientFromOptions(logrus.Fields{},
+	_, userGenerator, ghClient, err := github.NewClientFromOptions(logrus.Fields{},
 		github.ClientOptions{
 			Censor:          func(b []byte) []byte { return b },
 			GetToken:        func() []byte { return []byte(oauthToken) },
 			AppID:           "",
 			AppPrivateKey:   nil,
-			GraphqlEndpoint: "",
-			Bases:           []string{"https://api.github.com"},
+			GraphqlEndpoint: github.DefaultGraphQLEndpoint,
+			Bases:           []string{github.DefaultAPIEndpoint},
 			DryRun:          false,
 		}.Default(),
 	)
-
+	if userGenerator != nil {
+		user, err := userGenerator()
+		if err != nil {
+			logrus.WithError(err).Warn("pga.getGithubClient : Cannot generate user")
+		}
+		logrus.Infof("pga.getGithubClient : user %v", user)
+	}
 	if err != nil {
 		logrus.WithError(err).Errorf("Error creating Github Client. Err: %v ", err)
 		logrus.WithError(err).Debugf("oauthToken: %v ", oauthToken)
@@ -215,6 +221,9 @@ func getClientConfig(repo string) *plugins.ClientAgent {
 	clientConfig = new(plugins.ClientAgent)
 	clientConfig.GitClient = getGitClient(repo)
 	clientConfig.GitHubClient = getGithubClient()
+	if logrus.GetLevel() == logrus.DebugLevel && !thisIsALocalRun() {
+		fmt.Printf("clientConfig.GitClient: %v\n", clientConfig.GitClient)
+	}
 	clientConfig.OwnersClient = getOwnersClient(repo)
 	clientConfig.BugzillaClient = &bugzilla.Fake{}
 	clientConfig.SlackClient = slack.NewFakeClient()
@@ -343,14 +352,7 @@ func storeDataAsArtefact(fileName string, data []byte) {
 }
 
 func handlePullRequestEvent(l *logrus.Entry, prEvent github.PullRequestEvent) {
-	l = l.WithFields(logrus.Fields{
-		github.OrgLogField:  prEvent.Repo.Owner.Login,
-		github.RepoLogField: prEvent.Repo.Name,
-		github.PrLogField:   prEvent.Number,
-		"author":            prEvent.PullRequest.User.Login,
-		"url":               prEvent.PullRequest.HTMLURL,
-	})
-	l.Infof("Pull request %s.", prEvent.Action)
+	l.Infof("%s", prEvent.Action)
 	prHandlerMap := pluginsConfig.PullRequestHandlers(
 		prEvent.PullRequest.Base.Repo.Owner.Login,
 		prEvent.PullRequest.Base.Repo.Name)
@@ -369,7 +371,7 @@ func handlePullRequestEvent(l *logrus.Entry, prEvent github.PullRequestEvent) {
 			)
 			err := errorOnPanic(func() error { return handler(agent, prEvent) })
 			if err != nil {
-				agent.Logger.WithError(err).Error("Error handling PullRequestEvent.")
+				agent.Logger.WithError(err).Error("pga handlingPullRequestEvent")
 			}
 		}(pluginName, handler)
 	}
@@ -399,22 +401,17 @@ func handlePullRequestEvent(l *logrus.Entry, prEvent github.PullRequestEvent) {
 func handleIssueCommentEvent(event github.IssueCommentEvent, l *logrus.Entry) {
 
 	l = l.WithFields(logrus.Fields{
-		github.OrgLogField:  event.Repo.Owner.Login,
-		github.RepoLogField: event.Repo.Name,
-		github.PrLogField:   event.Issue.Number,
-		"author":            event.Comment.User.Login,
-		"url":               event.Comment.HTMLURL,
+		// 	github.OrgLogField:  event.Repo.Owner.Login,
+		// 	github.RepoLogField: event.Repo.Name,
+		// 	github.PrLogField:   event.Issue.Number,
+		// 	"author":            event.Comment.User.Login,
+		// 	"url":               event.Comment.HTMLURL,
 	})
-
 	l.Debugf("HANDLING %v on %v", event.Action, event.Issue.ID)
 
 	commentHandlerMap := pluginsConfig.IssueCommentHandlers(event.Repo.Owner.Login, event.Repo.Name)
 
 	l.Debugf("commentHandlerMap %v ", commentHandlerMap)
-
-	if len(commentHandlerMap) == 0 {
-		l.Debugf("No Issue comment handlers handlers configured for %v ", event.Repo.FullName)
-	}
 
 	i := 0
 	for pluginName, handler := range commentHandlerMap {
