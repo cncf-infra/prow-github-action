@@ -81,6 +81,16 @@ func TestRunAllGutHubActionTests(t *testing.T) {
 			expectedAssignees: []string{"@RobKielty", "@BobyMcBobs"},
 			err:               false,
 		},
+		{
+			name:              "A New Pull Request auto assigns revewiers",
+			envFile:           "./test-data/blunderbuss/new-pr/env",
+			eventFile:         "./test-data/blunderbuss/new-pr/pull_request_payload.json",
+			expectedCommand:   "/auto-cc",
+			expectedComment:   "",
+			expectedLabels:    []string{},
+			expectedAssignees: []string{"@RobKielty", "@BobyMcBobs"},
+			err:               false,
+		},
 	}
 	// Range over the cases, read in env vars
 	for _, tc := range cases {
