@@ -3,10 +3,7 @@ module k8s.io/prow/cmd/pga
 go 1.18
 
 require (
-	github.com/a8m/tree v0.0.0-20210414114729-ce3525c5c2ef
-	github.com/google/go-cmp v0.5.8
 	github.com/sirupsen/logrus v1.9.0
-	k8s.io/apimachinery v0.24.2
 	k8s.io/test-infra v0.0.0-20220826100625-7486a8d39cda
 )
 
@@ -68,6 +65,7 @@ require (
 	github.com/gomodule/redigo v1.8.5 // indirect
 	github.com/google/btree v1.0.1 // indirect
 	github.com/google/gnostic v0.5.7-v3refs // indirect
+	github.com/google/go-cmp v0.5.8 // indirect
 	github.com/google/go-containerregistry v0.8.1-0.20220216220642-00c59d91847c // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/google/gofuzz v1.2.1-0.20210504230335-f78f29fc09ea // indirect
@@ -144,6 +142,7 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	k8s.io/api v0.24.2 // indirect
+	k8s.io/apimachinery v0.24.2 // indirect
 	k8s.io/client-go v0.24.2 // indirect
 	k8s.io/component-base v0.24.2 // indirect
 	k8s.io/klog/v2 v2.70.0 // indirect
@@ -155,3 +154,5 @@ require (
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.1 // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
+
+replace k8s.io/test-infra => ../../../../../../gh/clean-forks/test-infra/

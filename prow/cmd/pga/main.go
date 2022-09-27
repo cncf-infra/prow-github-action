@@ -197,6 +197,7 @@ func getGithubClient() github.Client {
 			GetToken:        func() []byte { return []byte(oauthToken) },
 			AppID:           "",
 			AppPrivateKey:   nil,
+			IsGithubAction:  true,
 			GraphqlEndpoint: github.DefaultGraphQLEndpoint,
 			Bases:           []string{github.DefaultAPIEndpoint},
 			DryRun:          false,

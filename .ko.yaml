@@ -10,6 +10,8 @@ builds:
   - id: pga
     dir: prow/cmd/pga
     main: .
+    glags:
+      - -mod=vendor
     ldflags:
       - -s -w
       - -X cncf.io/cncf-infra/pga/version.Version={{.Env.VERSION}}
