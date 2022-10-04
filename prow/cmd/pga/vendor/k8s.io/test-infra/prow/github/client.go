@@ -695,12 +695,21 @@ func NewClientWithFields(fields logrus.Fields, getToken func() []byte, censor fu
 	return client, err
 }
 
-func NewAppsAuthClientWithFields(
-	fields logrus.Fields, censor func([]byte) []byte, appID string, appPrivateKey func() *rsa.PrivateKey, graphqlEndpoint string, bases ...string) (TokenGenerator, UserGenerator, Client, error) {
+func NewAppsAuthClientWithFields(fields logrus.Fields, censor func([]byte) []byte, appID string, appPrivateKey func() *rsa.PrivateKey, graphqlEndpoint string, bases ...string) (TokenGenerator, UserGenerator, Client, error) {
 	return NewClientFromOptions(fields, ClientOptions{
 		Censor:          censor,
 		AppID:           appID,
 		AppPrivateKey:   appPrivateKey,
+		GraphqlEndpoint: graphqlEndpoint,
+		Bases:           bases,
+		DryRun:          false,
+	}.Default())
+}
+
+func NewGithubActionClientWithFields(fields logrus.Fields, censor func([]byte) []byte, appID string, appPrivateKey func() *rsa.PrivateKey, graphqlEndpoint string, bases ...string) (TokenGenerator, UserGenerator, Client, error) {
+	return NewClientFromOptions(fields, ClientOptions{
+		Censor:          censor,
+		IsGithubAction:  true,
 		GraphqlEndpoint: graphqlEndpoint,
 		Bases:           bases,
 		DryRun:          false,
@@ -723,6 +732,10 @@ func NewClientFromOptions(fields logrus.Fields, options ClientOptions) (TokenGen
 		Transport: options.BaseRoundTripper,
 		Timeout:   options.MaxRequestTime,
 	}
+	if options.IsGithubAction == true {
+		logrus.Debug("options.IsGithubAction is true")
+	}
+
 	graphQLTransport := newAddHeaderTransport(options.BaseRoundTripper)
 	c := &client{
 		logger: logrus.WithFields(fields).WithField("client", "github"),
