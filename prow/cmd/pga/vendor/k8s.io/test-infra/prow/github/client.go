@@ -732,7 +732,7 @@ func NewClientFromOptions(fields logrus.Fields, options ClientOptions) (TokenGen
 		Transport: options.BaseRoundTripper,
 		Timeout:   options.MaxRequestTime,
 	}
-	if options.IsGithubAction == true {
+	if options.IsGithubAction {
 		logrus.Debug("options.IsGithubAction is true")
 	}
 
@@ -785,6 +785,16 @@ func NewClientFromOptions(fields logrus.Fields, options ClientOptions) (TokenGen
 		userGenerator = func() (string, error) {
 			return "x-access-token", nil
 		}
+	} else if options.IsGithubAction {
+		// Use the Emphemeral Access token provided by GitHub Actions
+		tokenGenerator = func(_ string) (string, error) {
+			return string(options.GetToken()), nil
+		}
+		// TODO IsItOk to return a fake username for GitHub Actions for now??
+		userGenerator = func() (string, error) {
+			return "GitHubActionEphemeralUser", nil
+		}
+
 	} else {
 		// Use Personal Access token auth for git actions
 		tokenGenerator = func(_ string) (string, error) {
@@ -1303,6 +1313,14 @@ func (c *client) getUserData(ctx context.Context) error {
 		}
 		return nil
 	}
+	if c.delegate.usesGithubActionToken {
+		c.userData = &UserData{
+			Name:  "GitHubActionEphemeralUser",
+			Login: "GitHubActionEphemeralLogin",
+			Email: fmt.Sprintf("%s@users.noreply.github.com", "GitHubActionEphemeralUser"),
+		}
+		return nil
+	}
 	c.log("User")
 	var u User
 	_, err := c.requestWithContext(ctx, &request{
@@ -1349,7 +1367,7 @@ func (c *client) BotUserChecker() (func(candidate string) bool, error) {
 func (c *client) BotUserCheckerWithContext(ctx context.Context) (func(candidate string) bool, error) {
 	c.mut.Lock()
 	defer c.mut.Unlock()
-	if c.userData == nil && !c.usesGithubActionToken {
+	if c.userData == nil {
 		if err := c.getUserData(ctx); err != nil {
 			return nil, fmt.Errorf("fetching userdata from GitHub: %w", err)
 		}
