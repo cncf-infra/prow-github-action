@@ -732,9 +732,6 @@ func NewClientFromOptions(fields logrus.Fields, options ClientOptions) (TokenGen
 		Transport: options.BaseRoundTripper,
 		Timeout:   options.MaxRequestTime,
 	}
-	if options.IsGithubAction {
-		logrus.Debug("options.IsGithubAction is true")
-	}
 
 	graphQLTransport := newAddHeaderTransport(options.BaseRoundTripper)
 	c := &client{
